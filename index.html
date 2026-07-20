@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SketchWire — Bocetos Web</title>
+  <meta name="description" content="Aplicación de wireframing y bocetos web con exportación a múltiples formatos" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Architects+Daughter&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ===== APP SHELL ===== -->
+  <div class="app">
+
+    <!-- ── Top Bar ── -->
+    <header class="topbar">
+      <div class="topbar__brand">
+        <span class="topbar__logo-icon" aria-hidden="true">✎</span>
+        <span class="topbar__logo-text">Sketch<span class="topbar__logo-accent">Wire</span></span>
+        <span class="topbar__badge">v1.0</span>
+      </div>
+      <nav class="topbar__actions">
+        <button class="btn btn--ghost" id="btn-import" title="Importar JSON">
+          <span class="btn__icon">📂</span> Importar
+        </button>
+        <button class="btn btn--ghost" id="btn-templates" title="Templates">
+          <span class="btn__icon">📐</span> Templates
+        </button>
+        <button class="btn btn--ghost" id="btn-undo" title="Ctrl+Z">
+          <span class="btn__icon">↩</span> Undo
+        </button>
+        <button class="btn btn--ghost" id="btn-redo" title="Ctrl+Y">
+          <span class="btn__icon">↪</span> Redo
+        </button>
+        <button class="btn btn--primary" id="btn-export">
+          <span class="btn__icon">⬇</span> Exportar
+        </button>
+      </nav>
+    </header>
+
+    <!-- ── Main Body ── -->
+    <div class="app__body">
+
+      <!-- Sidebar Tools -->
+      <aside class="sidebar" id="sidebar"></aside>
+
+      <!-- Canvas Area -->
+      <main class="canvas-area">
+        <div class="canvas-area__wrapper" id="canvas-wrapper">
+          <canvas class="canvas-area__canvas" id="main-canvas" width="1200" height="800"></canvas>
+          <canvas class="canvas-area__overlay" id="overlay-canvas" width="1200" height="800"></canvas>
+          <textarea class="canvas-area__text-input" id="text-input" placeholder="Escribe aquí..." hidden></textarea>
+        </div>
+      </main>
+
+      <!-- Right Panel -->
+      <aside class="panel">
+
+        <!-- Color -->
+        <section class="panel__section">
+          <h3 class="panel__title">Color</h3>
+          <div class="panel__color-grid" id="color-grid"></div>
+          <div class="panel__color-custom">
+            <input class="panel__color-picker" type="color" id="color-picker" value="#1a1a2e" />
+            <code class="panel__color-hex" id="color-hex">#1a1a2e</code>
+          </div>
+        </section>
+
+        <!-- Stroke -->
+        <section class="panel__section">
+          <h3 class="panel__title">Trazo: <span id="stroke-val">2</span>px</h3>
+          <input class="panel__slider" type="range" id="stroke-slider" min="1" max="8" value="2" />
+        </section>
+
+        <!-- Font Size -->
+        <section class="panel__section">
+          <h3 class="panel__title">Texto: <span id="font-val">18</span>px</h3>
+          <input class="panel__slider" type="range" id="font-slider" min="10" max="48" value="18" />
+        </section>
+
+        <!-- Zoom -->
+        <section class="panel__section">
+          <h3 class="panel__title">Zoom: <span id="zoom-val">100</span>%</h3>
+          <input class="panel__slider" type="range" id="zoom-slider" min="30" max="200" step="10" value="100" />
+        </section>
+
+        <!-- Toggles -->
+        <section class="panel__section">
+          <label class="panel__check">
+            <input type="checkbox" id="check-fill" /> Rellenar formas
+          </label>
+          <label class="panel__check">
+            <input type="checkbox" id="check-grid" checked /> Mostrar cuadrícula
+          </label>
+        </section>
+
+        <!-- Info -->
+        <section class="panel__section panel__section--border">
+          <h3 class="panel__title">Elementos: <span id="el-count">0</span></h3>
+          <button class="btn btn--danger btn--block" id="btn-delete-sel" hidden>
+            🗑 Eliminar selección
+          </button>
+        </section>
+
+        <button class="btn btn--danger btn--block" id="btn-clear">🗑 Limpiar todo</button>
+
+        <!-- Shortcuts hint -->
+        <footer class="panel__footer">
+          <p>⌨️ Ctrl+Z / Ctrl+Y</p>
+          <p>🖱️ Click + arrastrar</p>
+          <p>Del para borrar selección</p>
+        </footer>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: EXPORT ===== -->
+  <div class="modal" id="modal-export" hidden>
+    <div class="modal__backdrop"></div>
+    <div class="modal__content">
+      <h3 class="modal__heading">Exportar Wireframe</h3>
+      <p class="modal__sub">Elige el formato de exportación</p>
+      <div class="modal__grid modal__grid--2col">
+        <button class="modal__option" data-export="png">
+          <span class="modal__option-icon">🖼️</span>
+          <strong>PNG</strong>
+          <small>Imagen rasterizada</small>
+        </button>
+        <button class="modal__option" data-export="jpg">
+          <span class="modal__option-icon">📷</span>
+          <strong>JPG</strong>
+          <small>Comprimida</small>
+        </button>
+        <button class="modal__option" data-export="svg">
+          <span class="modal__option-icon">✨</span>
+          <strong>SVG</strong>
+          <small>Vectorial escalable</small>
+        </button>
+        <button class="modal__option" data-export="html">
+          <span class="modal__option-icon">🌐</span>
+          <strong>HTML</strong>
+          <small>Web editable</small>
+        </button>
+        <button class="modal__option modal__option--wide" data-export="json">
+          <span class="modal__option-icon">💾</span>
+          <strong>JSON</strong>
+          <small>Proyecto reutilizable (importar después)</small>
+        </button>
+      </div>
+      <button class="btn btn--ghost btn--block modal__cancel">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: TEMPLATES ===== -->
+  <div class="modal" id="modal-templates" hidden>
+    <div class="modal__backdrop"></div>
+    <div class="modal__content">
+      <h3 class="modal__heading">Templates</h3>
+      <p class="modal__sub">Empieza con una estructura predefinida</p>
+      <div class="modal__list">
+        <button class="modal__template" data-template="landing">
+          <span class="modal__template-icon">🏠</span>
+          <div>
+            <strong>Landing Page</strong>
+            <small>Hero, features, cards</small>
+          </div>
+        </button>
+        <button class="modal__template" data-template="dashboard">
+          <span class="modal__template-icon">📊</span>
+          <div>
+            <strong>Dashboard</strong>
+            <small>Sidebar, cards, chart area</small>
+          </div>
+        </button>
+        <button class="modal__template" data-template="form">
+          <span class="modal__template-icon">📝</span>
+          <div>
+            <strong>Formulario</strong>
+            <small>Contacto con inputs y botón</small>
+          </div>
+        </button>
+      </div>
+      <button class="btn btn--ghost btn--block modal__cancel">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- ===== SCRIPTS ===== -->
+  <script src="js/config.js"></script>
+  <script src="js/sketchy.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/exporter.js"></script>
+  <script src="js/templates.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
