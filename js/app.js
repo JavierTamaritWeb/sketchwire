@@ -15,6 +15,7 @@
     zoom:        1,
     fillShapes:  false,
     showGrid:    true,
+    snapGrid:    false,
     elements:    [],
     undoStack:   [],
     redoStack:   [],
@@ -50,6 +51,11 @@
 
   const UNDO_LIMIT = 50;
   const AUTOSAVE_KEY = 'sketchwire.autosave';
+  const GRID_STEP = 20;
+
+  function snapVal(v) {
+    return Math.round(v / GRID_STEP) * GRID_STEP;
+  }
 
   // Seed de jitter por elemento: serializable, sobrevive al export/import
   const newSeed = () => (Math.random() * 2 ** 31) | 0;
@@ -195,6 +201,10 @@
       Renderer.drawSelection(ctx, getElementBounds(state.elements[state.selectedIdx]));
     }
     $('el-count').textContent = state.elements.length;
+    // Único punto que sincroniza la UI dependiente de la selección
+    const hasSel = state.selectedIdx !== null;
+    $('btn-delete-sel').hidden = !hasSel;
+    $('btn-duplicate-sel').hidden = !hasSel;
     scheduleAutosave();
   }
 
@@ -213,10 +223,8 @@
         // Snapshot ANTES de que el drag mute state.elements
         state.dragSnapshot = snapshot();
         state.didDrag = false;
-        $('btn-delete-sel').hidden = false;
       } else {
         state.selectedIdx = null;
-        $('btn-delete-sel').hidden = true;
       }
       redraw();
       return;
@@ -329,7 +337,17 @@
     // End drag of selected element: el snapshot se capturó en onMouseDown,
     // antes de que onMouseMove mutara state.elements
     if (state.tool === TOOLS.SELECT && state.selectedIdx !== null) {
-      if (state.didDrag && state.dragSnapshot) pushUndo(state.dragSnapshot);
+      if (state.didDrag && state.dragSnapshot) {
+        pushUndo(state.dragSnapshot);
+        // Snap al soltar el drag
+        if (state.snapGrid && !e.altKey) {
+          const el = state.elements[state.selectedIdx];
+          const b = getElementBounds(el);
+          const dx = snapVal(b.x) - b.x;
+          const dy = snapVal(b.y) - b.y;
+          if (dx || dy) state.elements[state.selectedIdx] = moveElement(el, dx, dy);
+        }
+      }
       state.dragSnapshot = null;
       state.didDrag = false;
       redraw();
@@ -359,19 +377,23 @@
     }
 
     if (!state.startPos) return;
-    const x = Math.min(state.startPos.x, pos.x);
-    const y = Math.min(state.startPos.y, pos.y);
-    const w = Math.abs(pos.x - state.startPos.x);
-    const h = Math.abs(pos.y - state.startPos.y);
+    // Snap a la cuadrícula al crear (Alt lo desactiva; no aplica a lápiz/borrador)
+    const doSnap = state.snapGrid && !e.altKey;
+    const p1 = doSnap ? { x: snapVal(state.startPos.x), y: snapVal(state.startPos.y) } : state.startPos;
+    const p2 = doSnap ? { x: snapVal(pos.x), y: snapVal(pos.y) } : pos;
+    const x = Math.min(p1.x, p2.x);
+    const y = Math.min(p1.y, p2.y);
+    const w = Math.abs(p2.x - p1.x);
+    const h = Math.abs(p2.y - p1.y);
 
     // Line / Arrow (descarta clicks sin arrastre: líneas de longitud ~0)
     if (state.tool === TOOLS.LINE || state.tool === TOOLS.ARROW) {
-      if (Math.hypot(pos.x - state.startPos.x, pos.y - state.startPos.y) >= 4) {
+      if (Math.hypot(p2.x - p1.x, p2.y - p1.y) >= 4) {
         saveUndo();
         state.elements.push({
           type: state.tool,
-          x1: state.startPos.x, y1: state.startPos.y,
-          x2: pos.x, y2: pos.y,
+          x1: p1.x, y1: p1.y,
+          x2: p2.x, y2: p2.y,
           color: state.color, lineWidth: state.lineWidth,
           seed: newSeed(),
         });
@@ -454,6 +476,34 @@
     mainCanvas.classList.toggle('canvas-area__canvas--move', state.tool === TOOLS.SELECT);
   }
 
+  /* ── Acciones sobre la selección ── */
+
+  function selectTool(id) {
+    state.tool = id;
+    state.selectedIdx = null;
+    updateToolbarActive();
+    updateCursor();
+    redraw();
+  }
+
+  function deleteSelection() {
+    if (state.selectedIdx === null) return;
+    saveUndo();
+    state.elements.splice(state.selectedIdx, 1);
+    state.selectedIdx = null;
+    redraw();
+  }
+
+  function duplicateSelection() {
+    if (state.selectedIdx === null) return;
+    saveUndo();
+    const copy = moveElement(state.elements[state.selectedIdx], 15, 15);
+    copy.seed = newSeed();
+    state.elements.push(copy);
+    state.selectedIdx = state.elements.length - 1;
+    redraw();
+  }
+
   /* ── Build sidebar ── */
 
   function buildSidebar() {
@@ -472,16 +522,9 @@
         const btn = document.createElement('button');
         btn.className = 'sidebar__tool';
         btn.dataset.tool = t.id;
-        btn.title = t.name;
+        btn.title = t.key ? `${t.name} (${t.key.toUpperCase()})` : t.name;
         btn.innerHTML = `<span>${t.icon}</span><span class="sidebar__tool-name">${t.name}</span>`;
-        btn.addEventListener('click', () => {
-          state.tool = t.id;
-          state.selectedIdx = null;
-          $('btn-delete-sel').hidden = true;
-          updateToolbarActive();
-          updateCursor();
-          redraw();
-        });
+        btn.addEventListener('click', () => selectTool(t.id));
         div.appendChild(btn);
       });
       sidebar.appendChild(div);
@@ -552,6 +595,7 @@
     // Checkboxes
     $('check-fill').addEventListener('change', e => { state.fillShapes = e.target.checked; });
     $('check-grid').addEventListener('change', e => { state.showGrid = e.target.checked; redraw(); });
+    $('check-snap').addEventListener('change', e => { state.snapGrid = e.target.checked; });
 
     // Undo / Redo
     $('btn-undo').addEventListener('click', undo);
@@ -562,20 +606,13 @@
       saveUndo();
       state.elements = [];
       state.selectedIdx = null;
-      $('btn-delete-sel').hidden = true;
       try { localStorage.removeItem(AUTOSAVE_KEY); } catch (_) {}
       redraw();
     });
 
-    // Delete selection
-    $('btn-delete-sel').addEventListener('click', () => {
-      if (state.selectedIdx === null) return;
-      saveUndo();
-      state.elements.splice(state.selectedIdx, 1);
-      state.selectedIdx = null;
-      $('btn-delete-sel').hidden = true;
-      redraw();
-    });
+    // Selection actions
+    $('btn-delete-sel').addEventListener('click', deleteSelection);
+    $('btn-duplicate-sel').addEventListener('click', duplicateSelection);
 
     // Import
     $('btn-import').addEventListener('click', async () => {
@@ -595,7 +632,6 @@
     state.redoStack.push(snapshot());
     state.elements = state.undoStack.pop();
     state.selectedIdx = null;
-    $('btn-delete-sel').hidden = true;
     redraw();
   }
 
@@ -603,24 +639,64 @@
     if (!state.redoStack.length) return;
     state.undoStack.push(snapshot());
     state.elements = state.redoStack.pop();
+    state.selectedIdx = null;
     redraw();
   }
 
   /* ── Keyboard shortcuts ── */
 
-  document.addEventListener('keydown', e => {
-    if (e.target === textInput) return; // Don't capture while typing text
+  const TOOL_KEYS = {};
+  TOOL_GROUPS.forEach(g => g.tools.forEach(t => { if (t.key) TOOL_KEYS[t.key] = t.id; }));
 
-    if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); redo(); }
+  const NUDGE = {
+    ArrowLeft:  [-1, 0],
+    ArrowRight: [1, 0],
+    ArrowUp:    [0, -1],
+    ArrowDown:  [0, 1],
+  };
+
+  document.addEventListener('keydown', e => {
+    // No capturar mientras se escribe en cualquier control
+    const tag = e.target.tagName;
+    if (e.target === textInput || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+    const k = e.key.toLowerCase();
+
+    // Undo / Redo (Cmd+Shift+Z es el redo estándar en macOS)
+    if ((e.ctrlKey || e.metaKey) && k === 'z') {
+      e.preventDefault();
+      if (e.shiftKey) redo(); else undo();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); redo(); return; }
+    if ((e.ctrlKey || e.metaKey) && k === 'd') { e.preventDefault(); duplicateSelection(); return; }
 
     if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedIdx !== null) {
       e.preventDefault();
-      saveUndo();
-      state.elements.splice(state.selectedIdx, 1);
+      deleteSelection();
+      return;
+    }
+
+    if (e.key === 'Escape' && state.selectedIdx !== null) {
       state.selectedIdx = null;
-      $('btn-delete-sel').hidden = true;
       redraw();
+      return;
+    }
+
+    // Nudge de la selección con flechas (Shift: paso de cuadrícula)
+    if (NUDGE[e.key] && state.selectedIdx !== null) {
+      e.preventDefault();
+      const f = e.shiftKey ? GRID_STEP : 1;
+      saveUndo();
+      state.elements[state.selectedIdx] =
+        moveElement(state.elements[state.selectedIdx], NUDGE[e.key][0] * f, NUDGE[e.key][1] * f);
+      redraw();
+      return;
+    }
+
+    // Selección de herramienta por tecla
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && TOOL_KEYS[k]) {
+      selectTool(TOOL_KEYS[k]);
     }
   });
 
@@ -652,7 +728,6 @@
         saveUndo();
         state.elements = withSeeds(Templates.get(btn.dataset.template));
         state.selectedIdx = null;
-        $('btn-delete-sel').hidden = true;
         tplModal.hidden = true;
         redraw();
       });

@@ -95,11 +95,17 @@
           <label class="panel__check">
             <input type="checkbox" id="check-grid" checked /> Mostrar cuadrícula
           </label>
+          <label class="panel__check">
+            <input type="checkbox" id="check-snap" /> Ajustar a cuadrícula
+          </label>
         </section>
 
         <!-- Info -->
         <section class="panel__section panel__section--border">
           <h3 class="panel__title">Elementos: <span id="el-count">0</span></h3>
+          <button class="btn btn--ghost btn--block" id="btn-duplicate-sel" hidden>
+            ⧉ Duplicar selección
+          </button>
           <button class="btn btn--danger btn--block" id="btn-delete-sel" hidden>
             🗑 Eliminar selección
           </button>
@@ -109,9 +115,11 @@
 
         <!-- Shortcuts hint -->
         <footer class="panel__footer">
-          <p>⌨️ Ctrl+Z / Ctrl+Y</p>
-          <p>🖱️ Click + arrastrar</p>
-          <p>Del para borrar selección</p>
+          <p>⌨️ Ctrl+Z deshacer · Ctrl+Y rehacer</p>
+          <p>Ctrl+D duplicar · Del borrar</p>
+          <p>Flechas mover (Shift: 20px)</p>
+          <p>Tecla por herramienta en su tooltip</p>
+          <p>Alt desactiva el ajuste a cuadrícula</p>
         </footer>
       </aside>
     </div>

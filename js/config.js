@@ -23,35 +23,35 @@ const TOOL_GROUPS = [
   {
     label: 'Draw',
     tools: [
-      { id: TOOLS.PENCIL, icon: '✏️', name: 'Lápiz' },
-      { id: TOOLS.LINE,   icon: '📏', name: 'Línea' },
-      { id: TOOLS.ARROW,  icon: '➡️', name: 'Flecha' },
-      { id: TOOLS.ERASER, icon: '🧽', name: 'Borrador' },
+      { id: TOOLS.PENCIL, icon: '✏️', name: 'Lápiz',    key: 'p' },
+      { id: TOOLS.LINE,   icon: '📏', name: 'Línea',    key: 'l' },
+      { id: TOOLS.ARROW,  icon: '➡️', name: 'Flecha',   key: 'a' },
+      { id: TOOLS.ERASER, icon: '🧽', name: 'Borrador', key: 'e' },
     ],
   },
   {
     label: 'Shapes',
     tools: [
-      { id: TOOLS.RECT,         icon: '◻️', name: 'Rectángulo' },
-      { id: TOOLS.ROUNDED_RECT, icon: '▢',  name: 'Rounded' },
-      { id: TOOLS.CIRCLE,       icon: '⬭',  name: 'Círculo' },
+      { id: TOOLS.RECT,         icon: '◻️', name: 'Rectángulo', key: 'r' },
+      { id: TOOLS.ROUNDED_RECT, icon: '▢',  name: 'Rounded',    key: 'o' },
+      { id: TOOLS.CIRCLE,       icon: '⬭',  name: 'Círculo',    key: 'c' },
     ],
   },
   {
     label: 'UI',
     tools: [
-      { id: TOOLS.TEXT,              icon: 'T',  name: 'Texto' },
-      { id: TOOLS.BUTTON,           icon: '🔘', name: 'Botón' },
-      { id: TOOLS.INPUT,            icon: '▭',  name: 'Input' },
-      { id: TOOLS.IMAGE_PLACEHOLDER,icon: '🖼️', name: 'Imagen' },
-      { id: TOOLS.NAV,              icon: '☰',  name: 'Navbar' },
-      { id: TOOLS.CARD,             icon: '🃏', name: 'Card' },
+      { id: TOOLS.TEXT,              icon: 'T',  name: 'Texto',  key: 't' },
+      { id: TOOLS.BUTTON,           icon: '🔘', name: 'Botón',  key: 'b' },
+      { id: TOOLS.INPUT,            icon: '▭',  name: 'Input',  key: 'i' },
+      { id: TOOLS.IMAGE_PLACEHOLDER,icon: '🖼️', name: 'Imagen', key: 'm' },
+      { id: TOOLS.NAV,              icon: '☰',  name: 'Navbar', key: 'n' },
+      { id: TOOLS.CARD,             icon: '🃏', name: 'Card',   key: 'k' },
     ],
   },
   {
     label: 'Edit',
     tools: [
-      { id: TOOLS.SELECT, icon: '👆', name: 'Mover' },
+      { id: TOOLS.SELECT, icon: '👆', name: 'Mover', key: 'v' },
     ],
   },
 ];
