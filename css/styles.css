@@ -328,6 +328,12 @@ input[type="range"]::-moz-range-thumb {
   touch-action: none; /* pointer events: sin scroll/zoom táctil sobre el lienzo */
 }
 
+/* Feedback al arrastrar un archivo sobre el lienzo */
+.canvas-area__wrapper--dropping {
+  outline: 3px dashed var(--color-primary);
+  outline-offset: -3px;
+}
+
 .canvas-area__canvas--move {
   cursor: move;
 }

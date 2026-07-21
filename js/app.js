@@ -694,21 +694,29 @@
     }
   });
 
-  /* ── Pegar imágenes (Ctrl/Cmd+V con un PNG/JPEG en el portapapeles) ── */
+  /* ── Insertar imágenes: pegar (Ctrl/Cmd+V) o arrastrar desde el disco ── */
 
-  function addPastedImage(src) {
+  const IMAGE_MIME = /^image\/(png|jpeg)$/;
+
+  /**
+   * Inserta una imagen desde un data-URL. Sin `at` se centra en el canvas;
+   * con `at` (coords de canvas) se centra en ese punto, sin salirse.
+   */
+  function addImage(src, at) {
     const img = new Image();
     img.onload = () => {
       // Escalar para que quepa holgada en el canvas, conservando proporción
       const scale = Math.min(1, (CANVAS_W * 0.8) / img.naturalWidth, (CANVAS_H * 0.8) / img.naturalHeight);
       const w = Math.max(1, Math.round(img.naturalWidth * scale));
       const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const cx = at ? at.x : CANVAS_W / 2;
+      const cy = at ? at.y : CANVAS_H / 2;
+      const x = Math.round(Math.max(0, Math.min(CANVAS_W - w, cx - w / 2)));
+      const y = Math.round(Math.max(0, Math.min(CANVAS_H - h, cy - h / 2)));
       saveUndo();
       state.elements.push({
         type: TOOLS.IMAGE,
-        x: Math.round((CANVAS_W - w) / 2),
-        y: Math.round((CANVAS_H - h) / 2),
-        w, h, src,
+        x, y, w, h, src,
         color: state.color, lineWidth: state.lineWidth,
         seed: newSeed(),
       });
@@ -717,8 +725,15 @@
       setSelection([state.elements.length - 1]);
       redraw();
     };
-    img.onerror = () => alert('No se pudo cargar la imagen pegada');
+    img.onerror = () => alert('No se pudo cargar la imagen');
     img.src = src;
+  }
+
+  function addImageFile(file, at) {
+    if (!file || !IMAGE_MIME.test(file.type)) return;
+    const reader = new FileReader();
+    reader.onload = () => addImage(reader.result, at);
+    reader.readAsDataURL(file);
   }
 
   document.addEventListener('paste', e => {
@@ -728,16 +743,43 @@
     const items = e.clipboardData && e.clipboardData.items;
     if (!items) return;
     for (const item of items) {
-      if (/^image\/(png|jpeg)$/.test(item.type)) {
+      if (IMAGE_MIME.test(item.type)) {
         e.preventDefault();
-        const file = item.getAsFile();
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = () => addPastedImage(reader.result);
-        reader.readAsDataURL(file);
+        addImageFile(item.getAsFile());
         return;
       }
     }
+  });
+
+  // Drag & drop de archivos desde el escritorio al lienzo
+  let dragDepth = 0;
+
+  function setDropHighlight(on) {
+    wrapper.classList.toggle('canvas-area__wrapper--dropping', on);
+  }
+
+  mainCanvas.addEventListener('dragover', e => {
+    // preventDefault es lo que habilita el drop
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+  mainCanvas.addEventListener('dragenter', e => {
+    e.preventDefault();
+    dragDepth++;
+    setDropHighlight(true);
+  });
+  mainCanvas.addEventListener('dragleave', () => {
+    if (--dragDepth <= 0) { dragDepth = 0; setDropHighlight(false); }
+  });
+  mainCanvas.addEventListener('drop', e => {
+    e.preventDefault();
+    dragDepth = 0;
+    setDropHighlight(false);
+    const pos = getPos(e);
+    const files = [...(e.dataTransfer.files || [])].filter(f => IMAGE_MIME.test(f.type));
+    if (!files.length) return;
+    // Varias imágenes: en cascada desde el punto de suelta
+    files.forEach((f, i) => addImageFile(f, { x: pos.x + i * 24, y: pos.y + i * 24 }));
   });
 
   /* ── Canvas cursor ── */
