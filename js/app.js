@@ -694,6 +694,52 @@
     }
   });
 
+  /* ── Pegar imágenes (Ctrl/Cmd+V con un PNG/JPEG en el portapapeles) ── */
+
+  function addPastedImage(src) {
+    const img = new Image();
+    img.onload = () => {
+      // Escalar para que quepa holgada en el canvas, conservando proporción
+      const scale = Math.min(1, (CANVAS_W * 0.8) / img.naturalWidth, (CANVAS_H * 0.8) / img.naturalHeight);
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      saveUndo();
+      state.elements.push({
+        type: TOOLS.IMAGE,
+        x: Math.round((CANVAS_W - w) / 2),
+        y: Math.round((CANVAS_H - h) / 2),
+        w, h, src,
+        color: state.color, lineWidth: state.lineWidth,
+        seed: newSeed(),
+      });
+      // Queda seleccionada con Mover para arrastrarla/redimensionarla al momento
+      selectTool(TOOLS.SELECT);
+      setSelection([state.elements.length - 1]);
+      redraw();
+    };
+    img.onerror = () => alert('No se pudo cargar la imagen pegada');
+    img.src = src;
+  }
+
+  document.addEventListener('paste', e => {
+    // No interceptar el pegado dentro de campos de texto
+    const tag = e.target.tagName;
+    if (e.target === textInput || tag === 'INPUT' || tag === 'TEXTAREA') return;
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (const item of items) {
+      if (/^image\/(png|jpeg)$/.test(item.type)) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => addPastedImage(reader.result);
+        reader.readAsDataURL(file);
+        return;
+      }
+    }
+  });
+
   /* ── Canvas cursor ── */
 
   function updateCursor() {
@@ -998,6 +1044,8 @@
   /* ── Init ── */
 
   function init() {
+    // Repintar cuando cargue una imagen (autosave/import restauran data-URLs)
+    Renderer.setImageLoadCallback(redraw);
     restoreAutosave();
     buildSidebar();
     buildColors();

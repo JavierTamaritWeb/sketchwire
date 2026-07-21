@@ -18,18 +18,18 @@ test('config.js — TOOLS', async t => {
     assert.equal(Object.isFrozen(ctx.TOOLS), true);
   });
 
-  await t.test('TOOLS tiene exactamente los 14 ids esperados', () => {
+  await t.test('TOOLS tiene exactamente los 15 ids esperados', () => {
     const expected = [
       'pencil', 'line', 'rect', 'roundedRect', 'circle', 'arrow',
       'text', 'eraser', 'select', 'imagePlaceholder', 'button',
-      'input', 'nav', 'card',
+      'input', 'nav', 'card', 'image',
     ];
     const values = Object.values(ctx.TOOLS);
-    assert.equal(values.length, 14);
+    assert.equal(values.length, 15);
     assert.deepEqual([...values].sort(), [...expected].sort());
-    // Las claves también son 14 y únicas
-    assert.equal(Object.keys(ctx.TOOLS).length, 14);
-    assert.equal(new Set(values).size, 14);
+    // Las claves también son 15 y únicas
+    assert.equal(Object.keys(ctx.TOOLS).length, 15);
+    assert.equal(new Set(values).size, 15);
   });
 });
 

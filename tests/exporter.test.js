@@ -357,3 +357,60 @@ test('Exporter.isValidElement: label opcional debe ser string', () => {
   assert.equal(ctx.Exporter.isValidElement({ ...elButton, label: 42 }), false);
   assert.ok(ctx.Exporter.isValidElement(elButton), 'sin label sigue siendo válido');
 });
+
+/* ============================================================
+   Imágenes pegadas (type: image)
+   ============================================================ */
+
+const PNG_SRC = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==';
+const elImage = { ...base, type: 'image', x: 100, y: 50, w: 200, h: 150, src: PNG_SRC };
+
+test('Exporter.isValidElement: image válida con data-URL PNG/JPEG', () => {
+  const ctx = freshCtx();
+  assert.ok(ctx.Exporter.isValidElement(elImage));
+  assert.ok(ctx.Exporter.isValidElement({ ...elImage, src: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==' }));
+});
+
+test('Exporter.isValidElement: rechaza image con src peligroso o malformado', () => {
+  const ctx = freshCtx();
+  const bad = [
+    { ...elImage, src: 'javascript:alert(1)' },
+    { ...elImage, src: 'https://evil.example/x.png' },
+    { ...elImage, src: 'data:text/html;base64,PHNjcmlwdD4=' },
+    { ...elImage, src: 'data:image/svg+xml;base64,PHN2Zz4=' },   // SVG puede ejecutar scripts
+    { ...elImage, src: 'data:image/png;base64,"><script>' },     // charset no-base64
+    { ...elImage, src: 42 },
+    { ...elImage, src: undefined },
+    { ...elImage, w: '200' },
+  ];
+  for (const el of bad) {
+    assert.equal(ctx.Exporter.isValidElement(el), false, `debe rechazar src=${String(el.src).slice(0, 40)}`);
+  }
+});
+
+test('Exporter.svg: image genera <image> con href, tamaño y posición', () => {
+  const ctx = freshCtx();
+  ctx.Exporter.svg([elImage]);
+  const out = lastBlob(ctx).content;
+  assert.match(out, /<image x="100" y="50" width="200" height="150" href="data:image\/png;base64,/);
+});
+
+test('Exporter.html: image genera <img> posicionado con el src escapado', () => {
+  const ctx = freshCtx();
+  ctx.Exporter.html([elImage]);
+  const out = lastBlob(ctx).content;
+  assert.ok(out.includes('<img src="data:image/png;base64,'), 'img presente');
+  assert.ok(out.includes('left:100px;top:50px;width:200px;height:150px'), 'posición y tamaño');
+});
+
+test('Exporter.json: round-trip de un elemento image conserva el src', async () => {
+  const ctx = freshCtx();
+  ctx.Exporter.json([elImage]);
+  const jsonStr = lastBlob(ctx).content;
+  const p = ctx.Exporter.importJSON();
+  const input = ctx.document.created[ctx.document.created.length - 1];
+  input.onchange({ target: { files: [{ text: jsonStr }] } });
+  const els = JSON.parse(JSON.stringify(await p));
+  assert.equal(els.length, 1, 'la imagen sobrevive a la validación del import');
+  assert.equal(els[0].src, PNG_SRC);
+});

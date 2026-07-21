@@ -13,6 +13,7 @@ const TOOLS = Object.freeze({
   ERASER:           'eraser',
   SELECT:           'select',
   IMAGE_PLACEHOLDER:'imagePlaceholder',
+  IMAGE:            'image', // imagen real pegada (sin botón en el sidebar)
   BUTTON:           'button',
   INPUT:            'input',
   NAV:              'nav',

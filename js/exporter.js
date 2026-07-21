@@ -111,6 +111,10 @@ const Exporter = (() => {
           break;
         }
 
+        case 'image':
+          out += `<image x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" href="${_escapeXml(el.src)}" preserveAspectRatio="none"/>\n`;
+          break;
+
         case 'rect':
           out += `<rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" ${sf}/>\n`;
           break;
@@ -214,6 +218,9 @@ body { font-family: ${SKETCHY_FONT}; background: #fff; }
         case 'imagePlaceholder':
           out += `  <div style="left:${el.x}px;top:${el.y}px;width:${el.w}px;height:${el.h}px;border:${lw}px solid ${color};display:flex;align-items:center;justify-content:center;color:${color}80;font-size:14px;">Image Placeholder</div>\n`;
           break;
+        case 'image':
+          out += `  <img src="${_escapeHtml(el.src)}" alt="" style="left:${el.x}px;top:${el.y}px;width:${el.w}px;height:${el.h}px;object-fit:fill;"/>\n`;
+          break;
         case 'nav':
           out += `  <nav style="left:${el.x}px;top:${el.y}px;width:${el.w}px;height:${el.h}px;border:${lw}px solid ${color};display:flex;align-items:center;justify-content:space-between;padding:0 20px;"><span>${_escapeHtml(el.label || 'Logo')}</span><div style="display:flex;gap:20px;"><a href="#">Home</a><a href="#">About</a><a href="#">Contact</a></div></nav>\n`;
           break;
@@ -239,6 +246,9 @@ body { font-family: ${SKETCHY_FONT}; background: #fff; }
   /* ── Validación de import ── */
 
   const HEX_COLOR = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i;
+  // Solo data-URLs base64 de PNG/JPEG: evita javascript:/http: inyectados
+  // por un JSON manipulado en los exports SVG/HTML
+  const IMAGE_SRC = /^data:image\/(png|jpeg);base64,[a-z0-9+/=]+$/i;
   const ELEMENT_TYPES = Object.values(TOOLS).filter(t => t !== TOOLS.SELECT);
 
   function _isNum(v) {
@@ -263,6 +273,10 @@ body { font-family: ${SKETCHY_FONT}; background: #fff; }
       return _isNum(el.x1) && _isNum(el.y1) && _isNum(el.x2) && _isNum(el.y2);
     }
     if (el.label !== undefined && typeof el.label !== 'string') return false;
+    if (el.type === 'image') {
+      return _isNum(el.x) && _isNum(el.y) && _isNum(el.w) && _isNum(el.h) &&
+             typeof el.src === 'string' && IMAGE_SRC.test(el.src);
+    }
     if (el.type === 'text') {
       return _isNum(el.x) && _isNum(el.y) && typeof el.value === 'string' && _isNum(el.fontSize);
     }

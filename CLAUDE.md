@@ -38,6 +38,8 @@ The app is state-driven immediate-mode rendering: a single `state.elements` arra
 - `js/templates.js` — predefined element arrays (landing, dashboard, form).
 - `js/app.js` — main controller IIFE: holds `state`, wires all DOM events, mouse handlers (two-canvas setup: `main-canvas` for committed elements, `overlay-canvas` for in-progress previews), hit-testing/drag for the select tool, undo/redo (deep-cloned snapshots of `state.elements`), text input overlay, modals.
 
+One element type has no sidebar button: `image` (pasted via Ctrl/Cmd+V), whose `src` must be a base64 `data:image/png|jpeg` URL — enforced by `isValidElement` to keep injection out of SVG/HTML exports. Renderer keeps an image cache; `Renderer.setImageLoadCallback` is how app.js gets repaints when async loads finish.
+
 ### Adding a new element type
 
 Requires touching several files in sync: add the tool id to `TOOLS` and a sidebar entry in `TOOL_GROUPS` (config.js), a render case in `Renderer.renderElement`, creation logic in app.js `onMouseUp` (and `UI_DEFAULTS` if it's a UI component), bounds handling in `getElementBounds` (app.js) if it isn't x/y/w/h-shaped, and export cases in exporter.js for SVG and HTML (PNG/JPG reuse the Renderer automatically).

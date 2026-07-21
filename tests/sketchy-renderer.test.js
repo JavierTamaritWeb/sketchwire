@@ -401,3 +401,14 @@ test('drawSelection sin withHandles: solo el marco (sin handles)', () => {
   assert.equal(ctx.callsTo('strokeRect').length, 1);
   assert.equal(ctx.callsTo('fillRect').length, 0);
 });
+
+test('renderElement image: sin Image global dibuja placeholder punteado, no lanza', () => {
+  // En el navegador dibuja la imagen (drawImage con caché); en Node no hay
+  // Image, así que el fallback es el marco punteado del placeholder.
+  const ctx = createCtxStub();
+  const el = { type: 'image', x: 10, y: 20, w: 200, h: 150, color: '#333344', lineWidth: 2, src: 'data:image/png;base64,AAAA' };
+  assert.doesNotThrow(() => Renderer.renderElement(ctx, el));
+  assert.deepEqual(ctx.callsTo('strokeRect')[0].args, [10, 20, 200, 150]);
+  assert.deepEqual(ctx.callsTo('setLineDash').map(c => [...c.args[0]]), [[4, 4], []]);
+  assert.equal(ctx.callsTo('drawImage').length, 0);
+});

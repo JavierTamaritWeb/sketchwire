@@ -4,6 +4,42 @@
 
 const Renderer = (() => {
 
+  /* ── Caché de imágenes (elementos type:image con src data-URL) ── */
+
+  const _imgCache = new Map();
+  let _onImageLoad = null;
+
+  /** app.js registra aquí su redraw para repintar cuando cargue una imagen */
+  function setImageLoadCallback(fn) {
+    _onImageLoad = fn;
+  }
+
+  function _getImage(src) {
+    let img = _imgCache.get(src);
+    if (!img) {
+      img = new Image();
+      img.onload = () => { if (_onImageLoad) _onImageLoad(); };
+      img.src = src;
+      _imgCache.set(src, img);
+    }
+    return img;
+  }
+
+  function _image(ctx, el) {
+    // En entornos sin Image (tests en Node) se dibuja solo el placeholder
+    const img = (typeof Image !== 'undefined') ? _getImage(el.src) : null;
+    if (img && img.complete && img.naturalWidth) {
+      ctx.drawImage(img, el.x, el.y, el.w, el.h);
+      return;
+    }
+    // Placeholder mientras carga (o si el src es irrecuperable)
+    ctx.strokeStyle = el.color;
+    ctx.lineWidth = el.lineWidth;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(el.x, el.y, el.w, el.h);
+    ctx.setLineDash([]);
+  }
+
   /* ── UI component helpers ── */
 
   function _button(ctx, x, y, w, h, color, lw, label) {
@@ -199,6 +235,7 @@ const Renderer = (() => {
       case 'button':           _button(ctx, el.x, el.y, el.w, el.h, el.color, el.lineWidth, el.label); break;
       case 'input':            _input(ctx, el.x, el.y, el.w, el.h, el.color, el.lineWidth, el.label); break;
       case 'imagePlaceholder': _imagePlaceholder(ctx, el.x, el.y, el.w, el.h, el.color, el.lineWidth); break;
+      case 'image':            _image(ctx, el); break;
       case 'nav':              _nav(ctx, el.x, el.y, el.w, el.h, el.color, el.lineWidth, el.label); break;
       case 'card':             _card(ctx, el.x, el.y, el.w, el.h, el.color, el.lineWidth, el.label); break;
     }
@@ -260,5 +297,5 @@ const Renderer = (() => {
     ctx.restore();
   }
 
-  return { renderElement, drawGrid, drawSelection };
+  return { renderElement, drawGrid, drawSelection, setImageLoadCallback };
 })();
