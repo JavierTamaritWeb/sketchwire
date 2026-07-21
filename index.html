@@ -45,13 +45,13 @@
     <div class="app__body">
 
       <!-- Sidebar Tools -->
-      <aside class="sidebar" id="sidebar"></aside>
+      <aside class="sidebar" id="sidebar" role="toolbar" aria-orientation="vertical" aria-label="Herramientas"></aside>
 
       <!-- Canvas Area -->
       <main class="canvas-area">
         <div class="canvas-area__wrapper" id="canvas-wrapper">
-          <canvas class="canvas-area__canvas" id="main-canvas" width="1200" height="800"></canvas>
-          <canvas class="canvas-area__overlay" id="overlay-canvas" width="1200" height="800"></canvas>
+          <canvas class="canvas-area__canvas" id="main-canvas" width="1200" height="800" role="img" aria-label="Lienzo de dibujo"></canvas>
+          <canvas class="canvas-area__overlay" id="overlay-canvas" width="1200" height="800" aria-hidden="true"></canvas>
           <textarea class="canvas-area__text-input" id="text-input" placeholder="Escribe aquí..." hidden></textarea>
         </div>
       </main>
@@ -126,10 +126,8 @@
   </div>
 
   <!-- ===== MODAL: EXPORT ===== -->
-  <div class="modal" id="modal-export" hidden>
-    <div class="modal__backdrop"></div>
-    <div class="modal__content">
-      <h3 class="modal__heading">Exportar Wireframe</h3>
+  <dialog class="modal" id="modal-export" aria-labelledby="modal-export-title">
+      <h3 class="modal__heading" id="modal-export-title">Exportar Wireframe</h3>
       <p class="modal__sub">Elige el formato de exportación</p>
       <div class="modal__grid modal__grid--2col">
         <button class="modal__option" data-export="png">
@@ -159,14 +157,11 @@
         </button>
       </div>
       <button class="btn btn--ghost btn--block modal__cancel">Cancelar</button>
-    </div>
-  </div>
+  </dialog>
 
   <!-- ===== MODAL: TEMPLATES ===== -->
-  <div class="modal" id="modal-templates" hidden>
-    <div class="modal__backdrop"></div>
-    <div class="modal__content">
-      <h3 class="modal__heading">Templates</h3>
+  <dialog class="modal" id="modal-templates" aria-labelledby="modal-templates-title">
+      <h3 class="modal__heading" id="modal-templates-title">Templates</h3>
       <p class="modal__sub">Empieza con una estructura predefinida</p>
       <div class="modal__list">
         <button class="modal__template" data-template="landing">
@@ -192,8 +187,7 @@
         </button>
       </div>
       <button class="btn btn--ghost btn--block modal__cancel">Cancelar</button>
-    </div>
-  </div>
+  </dialog>
 
   <!-- ===== SCRIPTS ===== -->
   <script src="js/config.js"></script>

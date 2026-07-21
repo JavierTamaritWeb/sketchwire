@@ -580,7 +580,9 @@
 
   function updateToolbarActive() {
     document.querySelectorAll('.sidebar__tool').forEach(btn => {
-      btn.classList.toggle('sidebar__tool--active', btn.dataset.tool === state.tool);
+      const active = btn.dataset.tool === state.tool;
+      btn.classList.toggle('sidebar__tool--active', active);
+      btn.setAttribute('aria-pressed', String(active));
     });
   }
 
@@ -590,10 +592,13 @@
     const grid = $('color-grid');
     grid.innerHTML = '';
     COLORS.forEach(c => {
-      const swatch = document.createElement('div');
+      // <button> real: accesible por teclado y anunciable con aria-pressed
+      const swatch = document.createElement('button');
+      swatch.type = 'button';
       swatch.className = 'panel__color-swatch';
       swatch.style.background = c;
       swatch.dataset.color = c;
+      swatch.setAttribute('aria-label', `Color ${c}`);
       swatch.addEventListener('click', () => setColor(c));
       grid.appendChild(swatch);
     });
@@ -609,7 +614,9 @@
 
   function updateColorActive() {
     document.querySelectorAll('.panel__color-swatch').forEach(s => {
-      s.classList.toggle('panel__color-swatch--active', s.dataset.color === state.color);
+      const active = s.dataset.color === state.color;
+      s.classList.toggle('panel__color-swatch--active', active);
+      s.setAttribute('aria-pressed', String(active));
     });
   }
 
@@ -749,32 +756,29 @@
   /* ── Modals ── */
 
   function setupModals() {
-    // Export modal
+    // <dialog> nativo: showModal() da foco, trampa de Tab y Escape gratis;
+    // un click cuyo target es el propio dialog cae en el backdrop
     const exportModal = $('modal-export');
-    $('btn-export').addEventListener('click', () => { exportModal.hidden = false; });
-    exportModal.querySelectorAll('.modal__backdrop, .modal__cancel').forEach(el => {
-      el.addEventListener('click', () => { exportModal.hidden = true; });
-    });
+    $('btn-export').addEventListener('click', () => exportModal.showModal());
+    exportModal.querySelector('.modal__cancel').addEventListener('click', () => exportModal.close());
+    exportModal.addEventListener('click', e => { if (e.target === exportModal) exportModal.close(); });
     exportModal.querySelectorAll('[data-export]').forEach(btn => {
       btn.addEventListener('click', () => {
-        const fmt = btn.dataset.export;
-        Exporter[fmt](state.elements);
-        exportModal.hidden = true;
+        Exporter[btn.dataset.export](state.elements);
+        exportModal.close();
       });
     });
 
-    // Templates modal
     const tplModal = $('modal-templates');
-    $('btn-templates').addEventListener('click', () => { tplModal.hidden = false; });
-    tplModal.querySelectorAll('.modal__backdrop, .modal__cancel').forEach(el => {
-      el.addEventListener('click', () => { tplModal.hidden = true; });
-    });
+    $('btn-templates').addEventListener('click', () => tplModal.showModal());
+    tplModal.querySelector('.modal__cancel').addEventListener('click', () => tplModal.close());
+    tplModal.addEventListener('click', e => { if (e.target === tplModal) tplModal.close(); });
     tplModal.querySelectorAll('[data-template]').forEach(btn => {
       btn.addEventListener('click', () => {
         saveUndo();
         state.elements = withSeeds(Templates.get(btn.dataset.template));
         state.selectedIdx = null;
-        tplModal.hidden = true;
+        tplModal.close();
         redraw();
       });
     });
@@ -782,11 +786,20 @@
 
   /* ── Canvas event binding ── */
 
-  mainCanvas.addEventListener('mousedown', onMouseDown);
-  mainCanvas.addEventListener('mousemove', onMouseMove);
-  mainCanvas.addEventListener('mouseup',   onMouseUp);
-  mainCanvas.addEventListener('mouseleave', e => {
-    if (state.isDrawing || (state.tool === TOOLS.SELECT && state.didDrag)) onMouseUp(e);
+  // Pointer events con captura: funciona con ratón, táctil y stylus, y el
+  // trazo/drag sigue recibiendo eventos aunque el puntero salga del canvas
+  mainCanvas.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    mainCanvas.setPointerCapture(e.pointerId);
+    onMouseDown(e);
+  });
+  mainCanvas.addEventListener('pointermove', onMouseMove);
+  mainCanvas.addEventListener('pointerup', e => {
+    if (mainCanvas.hasPointerCapture(e.pointerId)) mainCanvas.releasePointerCapture(e.pointerId);
+    onMouseUp(e);
+  });
+  mainCanvas.addEventListener('pointercancel', e => {
+    if (state.isDrawing || state.didDrag) onMouseUp(e);
   });
 
   /* ── Init ── */

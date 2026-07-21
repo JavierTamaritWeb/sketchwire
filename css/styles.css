@@ -17,9 +17,9 @@
 
   /* Text */
   --text-primary: #e0e4ea;
-  --text-secondary: #8b90a0;
-  --text-muted: #6b7080;
-  --text-dim: #4a4d5e;
+  --text-secondary: #9aa0b0;
+  --text-muted: #8a90a3;
+  --text-dim: #767b8e;
 
   /* Borders */
   --border-main: #2a2d3e;
@@ -66,7 +66,18 @@ input[type="range"] {
   height: 4px;
   border-radius: 2px;
   background: var(--bg-hover);
-  outline: none;
+}
+
+/* Foco visible solo al navegar con teclado */
+.btn:focus-visible,
+.sidebar__tool:focus-visible,
+.panel__color-swatch:focus-visible,
+input[type="range"]:focus-visible,
+input[type="checkbox"]:focus-visible,
+.modal__option:focus-visible,
+.modal__template:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -243,7 +254,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .sidebar__group-label {
-  font-size: 9px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1.5px;
   color: var(--text-muted);
@@ -265,7 +276,6 @@ input[type="range"]::-moz-range-thumb {
   background: transparent;
   color: var(--text-secondary);
   transition: all var(--ease);
-  outline: none;
   cursor: pointer;
 }
 
@@ -281,7 +291,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .sidebar__tool-name {
-  font-size: 8px;
+  font-size: 9px;
   letter-spacing: 0.5px;
   font-weight: 500;
 }
@@ -313,6 +323,7 @@ input[type="range"]::-moz-range-thumb {
 .canvas-area__canvas {
   display: block;
   cursor: crosshair;
+  touch-action: none; /* pointer events: sin scroll/zoom táctil sobre el lienzo */
 }
 
 .canvas-area__canvas--move {
@@ -369,7 +380,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .panel__title {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1.5px;
   color: var(--text-muted);
@@ -442,7 +453,7 @@ input[type="range"]::-moz-range-thumb {
 
 .panel__footer {
   margin-top: auto;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-dim);
   line-height: 1.6;
   text-align: center;
@@ -451,36 +462,22 @@ input[type="range"]::-moz-range-thumb {
 /* ============================================================
    BLOCK: modal
    ============================================================ */
+/* <dialog> nativo: showModal() aporta foco, trampa de Tab y Escape */
 .modal {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal[hidden] {
-  display: none;
-}
-
-.modal__backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-}
-
-.modal__content {
-  position: relative;
+  margin: auto;
   background: var(--bg-surface);
+  color: var(--text-primary);
   border-radius: 16px;
   padding: 28px;
   min-width: 380px;
   max-width: 460px;
   border: 1px solid var(--border-main);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-  z-index: 1;
+}
+
+.modal::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
 }
 
 .modal__heading {
