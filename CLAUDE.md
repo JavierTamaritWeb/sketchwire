@@ -23,7 +23,7 @@ node --test tests/exporter.test.js   # single file
 
 Tests load the global-scope scripts via `node:vm` with canvas/DOM stubs (see `tests/helpers/`). Two vm-realm gotchas: arrays/errors created inside the vm don't share host prototypes, so compare structurally (`[...arr]`, `err.name`) instead of `deepStrictEqual` against host literals or `instanceof`.
 
-`PLAN.md` holds the prioritized improvement roadmap (fase 1 completed).
+`PLAN.md` holds the prioritized improvement roadmap (fases 1 and 2 completed; fase 3 pending).
 
 ## Architecture
 
