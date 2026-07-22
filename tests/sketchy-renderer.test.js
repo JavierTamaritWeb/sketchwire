@@ -579,3 +579,37 @@ test('renderElement curveArrow con dash: dash en la curva, puntas sólidas', () 
   assert.deepEqual(dashes, [[8, 8], []]);
   assert.equal(ctx.callsTo('stroke').length, 3);
 });
+
+/* ────────────────────────────────────────────────────────────
+   Etiquetas sobre flechas (label)
+   ──────────────────────────────────────────────────────────── */
+
+test('renderElement arrow con label: halo strokeText + fillText en el punto medio', () => {
+  const ctx = createCtxStub();
+  Renderer.renderElement(ctx, { type: 'arrow', x1: 0, y1: 0, x2: 100, y2: 40, color: '#333344', lineWidth: 2, label: 'sí', seed: 1 });
+  const strokeTexts = ctx.callsTo('strokeText');
+  const fillTexts = ctx.callsTo('fillText');
+  assert.equal(strokeTexts.length, 1, 'halo blanco');
+  assert.equal(fillTexts.length, 1);
+  assert.deepEqual(strokeTexts[0].args, ['sí', 50, 20]);
+  assert.deepEqual(fillTexts[0].args, ['sí', 50, 20]);
+  // El halo va antes que el relleno
+  const names = ctx.methodNames();
+  assert.ok(names.indexOf('strokeText') < names.indexOf('fillText'));
+});
+
+test('renderElement curveArrow con label: texto en Q(0.5), no en el punto medio de la cuerda', () => {
+  const ctx = createCtxStub();
+  // Cuerda de (0,0) a (100,0); control en (50,100) → Q(0.5) = (50, 50);
+  // el punto medio de la cuerda sería (50, 0)
+  Renderer.renderElement(ctx, { type: 'curveArrow', x1: 0, y1: 0, cx: 50, cy: 100, x2: 100, y2: 0, color: '#333344', lineWidth: 2, label: 'envía', seed: 1 });
+  const fill = ctx.callsTo('fillText')[0];
+  assert.deepEqual(fill.args, ['envía', 50, 50], 'centrado sobre la curva, no la cuerda');
+});
+
+test('renderElement arrow sin label: ningún fillText/strokeText', () => {
+  const ctx = createCtxStub();
+  Renderer.renderElement(ctx, { type: 'arrow', x1: 0, y1: 0, x2: 100, y2: 0, color: '#333344', lineWidth: 2, seed: 1 });
+  assert.equal(ctx.callsTo('fillText').length, 0);
+  assert.equal(ctx.callsTo('strokeText').length, 0);
+});

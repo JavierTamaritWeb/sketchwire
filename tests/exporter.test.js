@@ -567,3 +567,46 @@ test('Exporter.json + importJSON: dash sobrevive al round-trip', async () => {
   assert.equal(back.length, 2);
   assert.ok(back.every(e => e.dash === true));
 });
+
+/* ============================================================
+   Etiquetas sobre flechas en exports
+   ============================================================ */
+
+test('Exporter.svg: arrow con label genera <text> centrado y escapado', () => {
+  const ctx = freshCtx();
+  ctx.Exporter.svg([{ ...elArrow, label: 'sí <& "ya"' }]);
+  const out = lastBlob(ctx).content;
+  const text = out.split('\n').find(l => l.startsWith('<text'));
+  assert.ok(text, 'hay <text>');
+  assert.ok(text.includes('text-anchor="middle"'));
+  assert.ok(text.includes('paint-order="stroke"'), 'halo blanco');
+  assert.ok(text.includes('x="50" y="0"'), 'punto medio del segmento (0,0)-(100,0)');
+  assert.ok(text.includes('sí &lt;&amp; &quot;ya&quot;'), 'contenido escapado');
+});
+
+test('Exporter.svg: curveArrow con label centra el <text> en Q(0.5)', () => {
+  const ctx = freshCtx();
+  ctx.Exporter.svg([{ ...base, type: 'curveArrow', x1: 0, y1: 0, cx: 50, cy: 100, x2: 100, y2: 0, label: 'ok' }]);
+  const out = lastBlob(ctx).content;
+  const text = out.split('\n').find(l => l.startsWith('<text'));
+  assert.ok(text.includes('x="50" y="50"'), 'Q(0.5) de la curva');
+});
+
+test('Exporter.html: el label de la flecha va en el <svg> incrustado, escapado', () => {
+  const ctx = freshCtx();
+  ctx.Exporter.html([{ ...elArrow, label: '<b>x</b>' }]);
+  const out = lastBlob(ctx).content;
+  assert.ok(out.includes('&lt;b&gt;x&lt;/b&gt;'), 'escapado');
+  assert.ok(!out.includes('<b>x</b>'), 'nunca crudo');
+});
+
+test('round-trip JSON conserva el label de una flecha', async () => {
+  const ctx = freshCtx();
+  ctx.Exporter.json([{ ...elCurve, label: 'flujo' }]);
+  const jsonStr = lastBlob(ctx).content;
+  const p = ctx.Exporter.importJSON();
+  const input = ctx.document.created[ctx.document.created.length - 1];
+  input.onchange({ target: { files: [{ text: jsonStr }] } });
+  const back = JSON.parse(JSON.stringify(await p));
+  assert.equal(back[0].label, 'flujo');
+});

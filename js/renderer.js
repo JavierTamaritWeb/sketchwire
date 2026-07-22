@@ -40,6 +40,42 @@ const Renderer = (() => {
     ctx.setLineDash([]);
   }
 
+  /* ── Etiqueta de flecha (arrow/curveArrow) ── */
+
+  /**
+   * Punto medio del trazo: en curveArrow el punto de la curva en t=0.5
+   * (cuadrática o cúbica), no el punto medio de la cuerda.
+   */
+  function _arrowMid(el) {
+    if (el.type === 'curveArrow') {
+      if (el.cx2 !== undefined) {
+        return {
+          x: 0.125 * el.x1 + 0.375 * el.cx + 0.375 * el.cx2 + 0.125 * el.x2,
+          y: 0.125 * el.y1 + 0.375 * el.cy + 0.375 * el.cy2 + 0.125 * el.y2,
+        };
+      }
+      return {
+        x: 0.25 * el.x1 + 0.5 * el.cx + 0.25 * el.x2,
+        y: 0.25 * el.y1 + 0.5 * el.cy + 0.25 * el.y2,
+      };
+    }
+    return { x: (el.x1 + el.x2) / 2, y: (el.y1 + el.y2) / 2 };
+  }
+
+  /** Etiqueta 13px centrada sobre el trazo, con halo blanco de legibilidad */
+  function _arrowLabel(ctx, el) {
+    if (!el.label) return;
+    const mid = _arrowMid(el);
+    ctx.font = `13px ${SKETCHY_FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 4;
+    ctx.strokeText(el.label, mid.x, mid.y);
+    ctx.fillStyle = el.color;
+    ctx.fillText(el.label, mid.x, mid.y);
+  }
+
   /* ── UI component helpers ── */
 
   function _button(ctx, x, y, w, h, color, lw, label) {
@@ -191,6 +227,7 @@ const Renderer = (() => {
             Sketchy.line(ctx, sg.x1, sg.y1, sg.x2, sg.y2);
           });
         }
+        _arrowLabel(ctx, el);
         break;
       }
 
@@ -214,6 +251,7 @@ const Renderer = (() => {
             Sketchy.line(ctx, sg.x1, sg.y1, sg.x2, sg.y2);
           });
         }
+        _arrowLabel(ctx, el);
         break;
       }
 

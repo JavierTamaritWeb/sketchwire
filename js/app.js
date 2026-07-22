@@ -217,6 +217,29 @@
     };
   }
 
+  /**
+   * Punto medio del trazo de una flecha: para curveArrow, el punto de la
+   * curva en t=0.5 (no el punto medio de la cuerda); para arrow/line, el
+   * punto medio del segmento. Donde se centra la etiqueta.
+   */
+  function arrowMidpoint(el) {
+    if (el.type === 'curveArrow') {
+      if (el.cx2 !== undefined) {
+        // Cúbica: B(0.5) = 0.125·p1 + 0.375·c1 + 0.375·c2 + 0.125·p2
+        return {
+          x: 0.125 * el.x1 + 0.375 * el.cx + 0.375 * el.cx2 + 0.125 * el.x2,
+          y: 0.125 * el.y1 + 0.375 * el.cy + 0.375 * el.cy2 + 0.125 * el.y2,
+        };
+      }
+      // Cuadrática: Q(0.5) = 0.25·p1 + 0.5·c + 0.25·p2
+      return {
+        x: 0.25 * el.x1 + 0.5 * el.cx + 0.25 * el.x2,
+        y: 0.25 * el.y1 + 0.5 * el.cy + 0.25 * el.y2,
+      };
+    }
+    return { x: (el.x1 + el.x2) / 2, y: (el.y1 + el.y2) / 2 };
+  }
+
   /* ── Autosave ── */
 
   let autosaveTimer = null;
@@ -850,6 +873,11 @@
     if (el.type === 'text') {
       state.editingIdx = idx;
       showTextInput({ x: el.x, y: el.y }, el.value, el.fontSize);
+    } else if (el.type === 'arrow' || el.type === 'curveArrow') {
+      // Etiqueta de la flecha, centrada sobre el punto medio del trazo
+      const mid = arrowMidpoint(el);
+      state.editingIdx = idx;
+      showTextInput({ x: mid.x - 40, y: mid.y - 10 }, el.label || '', 13);
     } else if (LABELED_TYPES.includes(el.type)) {
       state.editingIdx = idx;
       showTextInput({ x: el.x, y: el.y }, el.label || '', 14);

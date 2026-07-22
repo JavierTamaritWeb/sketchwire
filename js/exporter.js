@@ -72,6 +72,28 @@ const Exporter = (() => {
   const VECTOR_TYPES = ['pencil', 'eraser', 'line', 'arrow', 'curveArrow', 'circle'];
 
   /**
+   * Etiqueta de flecha en SVG: <text> centrado en el punto medio del trazo
+   * con halo blanco (paint-order:stroke), misma técnica que el canvas.
+   */
+  function _svgArrowLabel(el, color) {
+    if (!el.label) return '';
+    let mx, my;
+    if (el.type === 'curveArrow') {
+      if (el.cx2 !== undefined) {
+        mx = 0.125 * el.x1 + 0.375 * el.cx + 0.375 * el.cx2 + 0.125 * el.x2;
+        my = 0.125 * el.y1 + 0.375 * el.cy + 0.375 * el.cy2 + 0.125 * el.y2;
+      } else {
+        mx = 0.25 * el.x1 + 0.5 * el.cx + 0.25 * el.x2;
+        my = 0.25 * el.y1 + 0.5 * el.cy + 0.25 * el.y2;
+      }
+    } else {
+      mx = (el.x1 + el.x2) / 2;
+      my = (el.y1 + el.y2) / 2;
+    }
+    return `<text x="${mx}" y="${my}" fill="${color}" stroke="#ffffff" stroke-width="4" paint-order="stroke" font-family="${FONT_FALLBACK}" font-size="13" text-anchor="middle" dominant-baseline="middle">${_escapeXml(el.label)}</text>\n`;
+  }
+
+  /**
    * Las 2 <line> de una punta de flecha (solo valores numéricos calculados;
    * `s` ya viene con color/grosor escapados). Geometría de Sketchy.arrowHead.
    */
@@ -123,6 +145,7 @@ const Exporter = (() => {
           if (el.heads === 'both') {
             out += _svgArrowHead(el.x1, el.y1, Math.atan2(el.y1 - el.y2, el.x1 - el.x2), hl, s);
           }
+          out += _svgArrowLabel(el, color);
           break;
         }
 
@@ -139,6 +162,7 @@ const Exporter = (() => {
             if (!sdx && !sdy) { sdx = el.x1 - el.x2; sdy = el.y1 - el.y2; }
             out += _svgArrowHead(el.x1, el.y1, Math.atan2(sdy, sdx), chl, s);
           }
+          out += _svgArrowLabel(el, color);
           break;
         }
 
