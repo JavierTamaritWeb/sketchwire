@@ -150,10 +150,14 @@ const Exporter = (() => {
         }
 
         case 'curveArrow': {
-          out += `<path d="M${el.x1} ${el.y1} Q${el.cx} ${el.cy} ${el.x2} ${el.y2}" ${sBody}/>\n`;
+          const cubic = el.cx2 !== undefined;
+          out += cubic
+            ? `<path d="M${el.x1} ${el.y1} C${el.cx} ${el.cy} ${el.cx2} ${el.cy2} ${el.x2} ${el.y2}" ${sBody}/>\n`
+            : `<path d="M${el.x1} ${el.y1} Q${el.cx} ${el.cy} ${el.x2} ${el.y2}" ${sBody}/>\n`;
           const chl = 10 + 2 * el.lineWidth;
-          // Punta según la tangente en el extremo (control → fin)
-          let tdx = el.x2 - el.cx, tdy = el.y2 - el.cy;
+          // Punta según la tangente en el extremo (último control → fin)
+          const ecx = cubic ? el.cx2 : el.cx, ecy = cubic ? el.cy2 : el.cy;
+          let tdx = el.x2 - ecx, tdy = el.y2 - ecy;
           if (!tdx && !tdy) { tdx = el.x2 - el.x1; tdy = el.y2 - el.y1; }
           out += _svgArrowHead(el.x2, el.y2, Math.atan2(tdy, tdx), chl, s);
           // Doble punta opcional: tangente en el inicio (control → inicio)
@@ -336,6 +340,9 @@ body { font-family: ${SKETCHY_FONT}; background: #fff; }
       return _isNum(el.x1) && _isNum(el.y1) && _isNum(el.x2) && _isNum(el.y2);
     }
     if (el.type === 'curveArrow') {
+      // Segundo control (curva en S): opcional, pero en pareja y numérico
+      if ((el.cx2 !== undefined || el.cy2 !== undefined) &&
+          !(_isNum(el.cx2) && _isNum(el.cy2))) return false;
       return _isNum(el.x1) && _isNum(el.y1) && _isNum(el.x2) && _isNum(el.y2) &&
              _isNum(el.cx) && _isNum(el.cy);
     }

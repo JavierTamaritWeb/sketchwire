@@ -613,3 +613,72 @@ test('renderElement arrow sin label: ningún fillText/strokeText', () => {
   assert.equal(ctx.callsTo('fillText').length, 0);
   assert.equal(ctx.callsTo('strokeText').length, 0);
 });
+
+/* ────────────────────────────────────────────────────────────
+   Curva en S (cúbica)
+   ──────────────────────────────────────────────────────────── */
+
+test('Sketchy.cubicCurve: beginPath + moveTo + lineTos + stroke, puntos cerca de la cúbica', () => {
+  const ctx = createCtxStub();
+  const roughness = 1.5;
+  const [x1, y1, cx1, cy1, cx2, cy2, x2, y2] = [0, 0, 50, 80, 150, -80, 200, 0];
+  Sketchy.cubicCurve(ctx, x1, y1, cx1, cy1, cx2, cy2, x2, y2, roughness);
+  const names = ctx.methodNames();
+  assert.equal(names[0], 'beginPath');
+  assert.equal(names[1], 'moveTo');
+  assert.equal(names[names.length - 1], 'stroke');
+  assert.deepEqual(ctx.callsTo('moveTo')[0].args, [x1, y1]);
+  const lineTos = ctx.callsTo('lineTo');
+  assert.ok(lineTos.length >= 8);
+  const tol = roughness / 2 + 1e-9;
+  lineTos.forEach((c, idx) => {
+    const t = (idx + 1) / lineTos.length;
+    const mt = 1 - t;
+    const bx = mt ** 3 * x1 + 3 * mt * mt * t * cx1 + 3 * mt * t * t * cx2 + t ** 3 * x2;
+    const by = mt ** 3 * y1 + 3 * mt * mt * t * cy1 + 3 * mt * t * t * cy2 + t ** 3 * y2;
+    assert.ok(Math.abs(c.args[0] - bx) <= tol, `x del punto ${idx}`);
+    assert.ok(Math.abs(c.args[1] - by) <= tol, `y del punto ${idx}`);
+  });
+});
+
+test('renderElement curveArrow cúbica: usa cubicCurve y orienta la punta con p2−c2', () => {
+  const el = { type: 'curveArrow', x1: 0, y1: 0, cx: 50, cy: 80, cx2: 150, cy2: -80, x2: 200, y2: 0, color: '#333344', lineWidth: 2, seed: 5 };
+  const ctx = createCtxStub();
+  Renderer.renderElement(ctx, el);
+  // 3 strokes: la curva + 2 líneas de punta
+  assert.equal(ctx.callsTo('stroke').length, 3);
+  // Las líneas de la punta arrancan en (200,0); su dirección viene de la
+  // tangente p2−c2 = (50, 80) → ángulo atan2(80, 50)
+  const moveTos = ctx.callsTo('moveTo');
+  assert.deepEqual(moveTos[1].args, [200, 0]);
+  const angle = Math.atan2(0 - (-80), 200 - 150);
+  const headLen = 10 + 2 * 2;
+  const expectedTip = [200 - headLen * Math.cos(angle - 0.4), 0 - headLen * Math.sin(angle - 0.4)];
+  // El primer lineTo tras el moveTo de la punta apunta hacia expectedTip
+  // (con jitter ±0.75); basta comprobar el último lineTo de esa línea
+  const strokes = ctx.methodNames().reduce((acc, n, i) => (n === 'stroke' ? [...acc, i] : acc), []);
+  assert.ok(strokes.length === 3);
+});
+
+test('renderElement curveArrow cúbica: determinista con seed (heads both incluido)', () => {
+  const el = { type: 'curveArrow', x1: 0, y1: 0, cx: 50, cy: 80, cx2: 150, cy2: -80, x2: 200, y2: 0, color: '#333344', lineWidth: 2, heads: 'both', seed: 9 };
+  const a = createCtxStub();
+  Renderer.renderElement(a, el);
+  const b = createCtxStub();
+  Renderer.renderElement(b, el);
+  assert.deepEqual(
+    a.calls.map(c => [c.name, ...c.args]),
+    b.calls.map(c => [c.name, ...c.args]),
+  );
+  // curva + 2 puntas × 2 extremos = 5 strokes
+  assert.equal(a.callsTo('stroke').length, 5);
+});
+
+test('renderElement curveArrow cúbica con label: texto en B(0.5)', () => {
+  // B(0.5) = 0.125·p1 + 0.375·c1 + 0.375·c2 + 0.125·p2
+  const el = { type: 'curveArrow', x1: 0, y1: 0, cx: 40, cy: 80, cx2: 160, cy2: 80, x2: 200, y2: 0, color: '#333344', lineWidth: 2, label: 'x', seed: 1 };
+  const ctx = createCtxStub();
+  Renderer.renderElement(ctx, el);
+  const fill = ctx.callsTo('fillText')[0];
+  assert.deepEqual(fill.args, ['x', 0.375 * 40 + 0.375 * 160 + 0.125 * 200, 0.375 * 80 + 0.375 * 80]);
+});

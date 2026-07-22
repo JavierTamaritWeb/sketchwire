@@ -105,7 +105,10 @@
       // La curva cuadrática queda dentro del casco convexo de sus 3 puntos,
       // así que incluir el control da un bbox seguro
       const xs = [el.x1, el.x2], ys = [el.y1, el.y2];
-      if (el.type === 'curveArrow') { xs.push(el.cx); ys.push(el.cy); }
+      if (el.type === 'curveArrow') {
+        xs.push(el.cx); ys.push(el.cy);
+        if (el.cx2 !== undefined) { xs.push(el.cx2); ys.push(el.cy2); }
+      }
       const x = Math.min(...xs), y = Math.min(...ys);
       return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
     }
@@ -139,13 +142,21 @@
         continue;
       }
       // Flecha curva: distancia a la polilínea que muestrea la curva
+      // (cuadrática o cúbica según tenga segundo control)
       if (el.type === 'curveArrow') {
         const N = 20;
+        const cubic = el.cx2 !== undefined;
         let px = el.x1, py = el.y1, hit = false;
         for (let s = 1; s <= N && !hit; s++) {
           const t = s / N, mt = 1 - t;
-          const qx = mt * mt * el.x1 + 2 * mt * t * el.cx + t * t * el.x2;
-          const qy = mt * mt * el.y1 + 2 * mt * t * el.cy + t * t * el.y2;
+          let qx, qy;
+          if (cubic) {
+            qx = mt * mt * mt * el.x1 + 3 * mt * mt * t * el.cx + 3 * mt * t * t * el.cx2 + t * t * t * el.x2;
+            qy = mt * mt * mt * el.y1 + 3 * mt * mt * t * el.cy + 3 * mt * t * t * el.cy2 + t * t * t * el.y2;
+          } else {
+            qx = mt * mt * el.x1 + 2 * mt * t * el.cx + t * t * el.x2;
+            qy = mt * mt * el.y1 + 2 * mt * t * el.cy + t * t * el.y2;
+          }
           hit = distToSegment(pos, px, py, qx, qy) <= el.lineWidth / 2 + 6;
           px = qx; py = qy;
         }
@@ -168,6 +179,7 @@
     } else if (m.x1 !== undefined) {
       m.x1 += dx; m.y1 += dy; m.x2 += dx; m.y2 += dy;
       if (m.cx !== undefined) { m.cx += dx; m.cy += dy; }
+      if (m.cx2 !== undefined) { m.cx2 += dx; m.cy2 += dy; }
     } else {
       m.x = (m.x || 0) + dx;
       m.y = (m.y || 0) + dy;
@@ -189,17 +201,77 @@
     };
   }
 
+  /** Refleja el punto (px,py) respecto a la recta (x1,y1)–(x2,y2). */
+  function reflectOverChord(px, py, x1, y1, dx, dy, len2) {
+    const t = ((px - x1) * dx + (py - y1) * dy) / len2;
+    const fx = x1 + dx * t, fy = y1 + dy * t;
+    return { x: 2 * fx - px, y: 2 * fy - py };
+  }
+
   /**
-   * Copia de la curveArrow con el control reflejado respecto a la recta
-   * (x1,y1)–(x2,y2): invierte el lado del giro sin cambiar los extremos.
+   * Copia de la curveArrow con el/los controles reflejados respecto a la
+   * recta (x1,y1)–(x2,y2): invierte el lado del giro sin cambiar extremos.
    */
   function flipCurve(el) {
     const dx = el.x2 - el.x1, dy = el.y2 - el.y1;
     const len2 = dx * dx + dy * dy;
     if (!len2) return el; // extremos coincidentes: nada que reflejar
-    const t = ((el.cx - el.x1) * dx + (el.cy - el.y1) * dy) / len2;
-    const px = el.x1 + dx * t, py = el.y1 + dy * t;
-    return { ...el, cx: 2 * px - el.cx, cy: 2 * py - el.cy };
+    const c1 = reflectOverChord(el.cx, el.cy, el.x1, el.y1, dx, dy, len2);
+    const m = { ...el, cx: c1.x, cy: c1.y };
+    if (el.cx2 !== undefined) {
+      const c2 = reflectOverChord(el.cx2, el.cy2, el.x1, el.y1, dx, dy, len2);
+      m.cx2 = c2.x; m.cy2 = c2.y;
+    }
+    return m;
+  }
+
+  /**
+   * Copia de la flecha con la dirección invertida: la punta pasa al otro
+   * extremo. En cuadrática la curva es idéntica (solo cambia la
+   * parametrización); en cúbica se intercambian también los controles.
+   */
+  function reverseArrow(el) {
+    const m = { ...el, x1: el.x2, y1: el.y2, x2: el.x1, y2: el.y1 };
+    if (el.cx2 !== undefined) {
+      m.cx = el.cx2; m.cy = el.cy2;
+      m.cx2 = el.cx; m.cy2 = el.cy;
+    }
+    if (el.startAnchor !== undefined || el.endAnchor !== undefined) {
+      m.startAnchor = el.endAnchor;
+      m.endAnchor = el.startAnchor;
+      if (m.startAnchor === undefined) delete m.startAnchor;
+      if (m.endAnchor === undefined) delete m.endAnchor;
+    }
+    return m;
+  }
+
+  /**
+   * Controles de la "S canónica" de una curveArrow cúbica: c1 al 25% de la
+   * cuerda con offset lateral +s, c2 al 75% con −s (lados opuestos).
+   */
+  function defaultCubicCtrls(el, sVal) {
+    const fr = chordFrame(el); // hoisted; null si la cuerda es degenerada
+    const ux = fr ? fr.ux : 0, uy = fr ? fr.uy : 0;
+    const dx = el.x2 - el.x1, dy = el.y2 - el.y1;
+    return {
+      cx:  el.x1 + dx * 0.25 + sVal * ux,
+      cy:  el.y1 + dy * 0.25 + sVal * uy,
+      cx2: el.x1 + dx * 0.75 - sVal * ux,
+      cy2: el.y1 + dy * 0.75 - sVal * uy,
+    };
+  }
+
+  /**
+   * Handles editables de una flecha seleccionada (nombre + posición).
+   * El commit de conectores añade aquí los de extremo (p1/p2).
+   */
+  function arrowHandles(el) {
+    const handles = [];
+    if (el.type === 'curveArrow') {
+      handles.push({ name: 'ctrl', x: el.cx, y: el.cy });
+      if (el.cx2 !== undefined) handles.push({ name: 'ctrl2', x: el.cx2, y: el.cy2 });
+    }
+    return handles;
   }
 
   /**
@@ -294,24 +366,28 @@
     state.selection.forEach(i => {
       Renderer.drawSelection(ctx, getElementBounds(state.elements[i]), single);
     });
-    // Handle de curvatura de la flecha curva seleccionada
+    // Handles de curvatura de la flecha curva seleccionada (1 en cuadrática,
+    // 2 en cúbica) con la polilínea de control como guía
     if (single) {
       const sel = state.elements[state.selection[0]];
-      if (sel.type === 'curveArrow') {
+      const handles = arrowHandles(sel);
+      if (handles.length) {
         ctx.save();
         ctx.strokeStyle = '#4ecdc4';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
         ctx.beginPath();
         ctx.moveTo(sel.x1, sel.y1);
-        ctx.lineTo(sel.cx, sel.cy);
+        handles.forEach(h => ctx.lineTo(h.x, h.y));
         ctx.lineTo(sel.x2, sel.y2);
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.fillStyle = '#4ecdc4';
-        ctx.beginPath();
-        ctx.arc(sel.cx, sel.cy, 5, 0, Math.PI * 2);
-        ctx.fill();
+        handles.forEach(h => {
+          ctx.beginPath();
+          ctx.arc(h.x, h.y, 5, 0, Math.PI * 2);
+          ctx.fill();
+        });
         ctx.restore();
       }
     }
@@ -383,6 +459,7 @@
       m.x1 = mapX(m.x1); m.y1 = mapY(m.y1);
       m.x2 = mapX(m.x2); m.y2 = mapY(m.y2);
       if (m.cx !== undefined) { m.cx = mapX(m.cx); m.cy = mapY(m.cy); }
+      if (m.cx2 !== undefined) { m.cx2 = mapX(m.cx2); m.cy2 = mapY(m.cy2); }
     } else if (m.type === 'text') {
       m.x = to.x; m.y = to.y;
       m.fontSize = Math.max(8, Math.round(m.fontSize * sy));
@@ -395,19 +472,22 @@
   function resizeTo(pos, e) {
     const r = state.resizing;
     const p = (state.snapGrid && !e.altKey) ? { x: snapVal(pos.x), y: snapVal(pos.y) } : pos;
-    // Handle de curvatura: mueve solo el punto de control
-    if (r.corner === 'ctrl') {
+    // Handles de curvatura: mueven solo su punto de control
+    if (r.corner === 'ctrl' || r.corner === 'ctrl2') {
       let cp = p;
       // Shift: restringe el control a la mediatriz de la cuerda → arcos
-      // simétricos, solo cambia la intensidad (puede cruzar al otro lado)
-      if (e.shiftKey) {
+      // simétricos, solo cambia la intensidad (puede cruzar al otro lado).
+      // Solo tiene sentido en cuadrática (en cúbica no hace nada).
+      if (e.shiftKey && r.corner === 'ctrl' && r.original.cx2 === undefined) {
         const fr = chordFrame(r.original);
         if (fr) {
           const sVal = (p.x - fr.mx) * fr.ux + (p.y - fr.my) * fr.uy;
           cp = { x: fr.mx + sVal * fr.ux, y: fr.my + sVal * fr.uy };
         }
       }
-      state.elements[state.selection[0]] = { ...r.original, cx: cp.x, cy: cp.y };
+      state.elements[state.selection[0]] = r.corner === 'ctrl'
+        ? { ...r.original, cx: cp.x, cy: cp.y }
+        : { ...r.original, cx2: cp.x, cy2: cp.y };
       r.did = true;
       return;
     }
@@ -435,11 +515,12 @@
       // 1. Handles de resize (antes que el hit-test de elementos)
       if (state.selection.length === 1) {
         const selEl = state.elements[state.selection[0]];
-        // Handle de curvatura de la flecha curva
-        if (selEl.type === 'curveArrow' &&
-            Math.hypot(pos.x - selEl.cx, pos.y - selEl.cy) <= HANDLE_HIT) {
-          state.resizing = { corner: 'ctrl', from: null, original: selEl, snapshot: snapshot(), did: false };
-          return;
+        // Handles de flecha (curvatura; el commit de conectores añade extremos)
+        for (const h of arrowHandles(selEl)) {
+          if (Math.hypot(pos.x - h.x, pos.y - h.y) <= HANDLE_HIT) {
+            state.resizing = { corner: h.name, from: null, original: selEl, snapshot: snapshot(), did: false };
+            return;
+          }
         }
         const b = getElementBounds(selEl);
         const corner = hitHandle(pos, b);
@@ -855,14 +936,19 @@
   mainCanvas.addEventListener('dblclick', e => {
     if (state.tool !== TOOLS.SELECT) return;
     const pos = getPos(e);
-    // Doble click sobre el handle de curvatura: resetear al 25% por defecto
+    // Doble click sobre un handle de curvatura: resetear la curvatura
+    // (cuadrática → control por defecto; cúbica → S canónica)
     if (state.selection.length === 1) {
       const sel = state.elements[state.selection[0]];
-      if (sel && sel.type === 'curveArrow' &&
-          Math.hypot(pos.x - sel.cx, pos.y - sel.cy) <= HANDLE_HIT) {
+      if (sel && arrowHandles(sel).some(h => Math.hypot(pos.x - h.x, pos.y - h.y) <= HANDLE_HIT)) {
         saveUndo();
-        const c = defaultCtrl({ x: sel.x1, y: sel.y1 }, { x: sel.x2, y: sel.y2 }, false);
-        state.elements[state.selection[0]] = { ...sel, cx: c.cx, cy: c.cy };
+        if (sel.cx2 !== undefined) {
+          const len = Math.hypot(sel.x2 - sel.x1, sel.y2 - sel.y1);
+          state.elements[state.selection[0]] = { ...sel, ...defaultCubicCtrls(sel, 0.25 * len) };
+        } else {
+          const c = defaultCtrl({ x: sel.x1, y: sel.y1 }, { x: sel.x2, y: sel.y2 }, false);
+          state.elements[state.selection[0]] = { ...sel, cx: c.cx, cy: c.cy };
+        }
         redraw();
         return;
       }
@@ -1313,9 +1399,55 @@
       return;
     }
 
+    // D: invertir la dirección de las flechas seleccionadas (la punta pasa
+    // al otro extremo; en curvas la forma no cambia)
+    if (k === 'd' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey &&
+        state.selection.some(i => ['arrow', 'curveArrow'].includes(state.elements[i].type))) {
+      saveUndo();
+      state.selection.forEach(i => {
+        if (['arrow', 'curveArrow'].includes(state.elements[i].type)) {
+          state.elements[i] = reverseArrow(state.elements[i]);
+        }
+      });
+      redraw();
+      return;
+    }
+
+    // S: alternar la flecha curva seleccionada entre curva simple (cuadrática)
+    // y curva en S (cúbica con dos controles)
+    if (k === 's' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey &&
+        state.selection.length === 1 &&
+        state.elements[state.selection[0]].type === 'curveArrow') {
+      const el = state.elements[state.selection[0]];
+      saveUndo();
+      if (el.cx2 !== undefined) {
+        // Cúbica → cuadrática: quitar el segundo control y resetear el primero
+        const copy = { ...el };
+        delete copy.cx2;
+        delete copy.cy2;
+        const c = defaultCtrl({ x: el.x1, y: el.y1 }, { x: el.x2, y: el.y2 }, false);
+        copy.cx = c.cx;
+        copy.cy = c.cy;
+        state.elements[state.selection[0]] = copy;
+      } else {
+        // Cuadrática → S canónica conservando la intensidad lateral actual
+        const fr = chordFrame(el);
+        const len = Math.hypot(el.x2 - el.x1, el.y2 - el.y1);
+        let sVal = 0.25 * len;
+        if (fr) {
+          const cur = (el.cx - fr.mx) * fr.ux + (el.cy - fr.my) * fr.uy;
+          if (Math.abs(cur) > 1) sVal = cur;
+        }
+        state.elements[state.selection[0]] = { ...el, ...defaultCubicCtrls(el, sVal) };
+      }
+      redraw();
+      return;
+    }
+
     // +/−: ajustar la intensidad de curvatura de la flecha curva seleccionada
-    // ('+' aleja el control del eje en su lado actual, '−' lo acerca y puede
-    // cruzar; Shift: paso fino de 1px). Conserva la componente lateral.
+    // ('+' aleja cada control del eje en su lado actual, '−' lo acerca y puede
+    // cruzar; Shift: paso fino de 1px). Conserva la componente lateral y,
+    // en cúbica, la forma en S (cada control según su propio signo).
     if ((e.key === '+' || e.key === '=' || e.key === '-') &&
         !e.ctrlKey && !e.metaKey && !e.altKey && state.selection.length === 1) {
       const el = state.elements[state.selection[0]];
@@ -1323,11 +1455,21 @@
         const fr = chordFrame(el);
         if (fr) {
           e.preventDefault();
-          const sVal = (el.cx - fr.mx) * fr.ux + (el.cy - fr.my) * fr.uy;
-          const dir = (e.key === '-' ? -1 : 1) * (Math.sign(sVal) || 1);
-          const d = (e.shiftKey ? 1 : 5) * dir;
+          const mag = (e.shiftKey ? 1 : 5) * (e.key === '-' ? -1 : 1);
+          const shifted = (cx, cy) => {
+            const sVal = (cx - fr.mx) * fr.ux + (cy - fr.my) * fr.uy;
+            const d = mag * (Math.sign(sVal) || 1);
+            return { x: cx + d * fr.ux, y: cy + d * fr.uy };
+          };
           saveUndo();
-          state.elements[state.selection[0]] = { ...el, cx: el.cx + d * fr.ux, cy: el.cy + d * fr.uy };
+          const c1 = shifted(el.cx, el.cy);
+          const copy = { ...el, cx: c1.x, cy: c1.y };
+          if (el.cx2 !== undefined) {
+            const c2 = shifted(el.cx2, el.cy2);
+            copy.cx2 = c2.x;
+            copy.cy2 = c2.y;
+          }
+          state.elements[state.selection[0]] = copy;
           redraw();
         }
         return;

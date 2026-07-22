@@ -610,3 +610,38 @@ test('round-trip JSON conserva el label de una flecha', async () => {
   const back = JSON.parse(JSON.stringify(await p));
   assert.equal(back[0].label, 'flujo');
 });
+
+/* ============================================================
+   Curva en S (cúbica) en exports
+   ============================================================ */
+
+const elCubic = { ...base, type: 'curveArrow', x1: 0, y1: 0, cx: 50, cy: 80, cx2: 150, cy2: -80, x2: 200, y2: 0 };
+
+test('Exporter.svg: curveArrow cúbica genera <path> con C y 2 líneas de punta', () => {
+  const ctx = freshCtx();
+  ctx.Exporter.svg([elCubic]);
+  const out = lastBlob(ctx).content;
+  assert.ok(out.includes('<path d="M0 0 C50 80 150 -80 200 0"'), 'path cúbico');
+  assert.equal((out.match(/<line /g) || []).length, 2, '2 líneas de punta');
+});
+
+test('Exporter.isValidElement: cx2/cy2 en pareja y numéricos; cuadrática sin ellos válida', () => {
+  const ctx = freshCtx();
+  assert.ok(ctx.Exporter.isValidElement(elCubic));
+  assert.ok(ctx.Exporter.isValidElement(elCurve), 'cuadrática sigue válida');
+  assert.equal(ctx.Exporter.isValidElement({ ...elCubic, cy2: undefined }), false, 'cx2 sin cy2');
+  assert.equal(ctx.Exporter.isValidElement({ ...elCubic, cx2: 'a' }), false);
+  assert.equal(ctx.Exporter.isValidElement({ ...elCubic, cy2: NaN }), false);
+});
+
+test('round-trip JSON conserva cx2/cy2', async () => {
+  const ctx = freshCtx();
+  ctx.Exporter.json([elCubic]);
+  const jsonStr = lastBlob(ctx).content;
+  const p = ctx.Exporter.importJSON();
+  const input = ctx.document.created[ctx.document.created.length - 1];
+  input.onchange({ target: { files: [{ text: jsonStr }] } });
+  const back = JSON.parse(JSON.stringify(await p));
+  assert.equal(back[0].cx2, 150);
+  assert.equal(back[0].cy2, -80);
+});

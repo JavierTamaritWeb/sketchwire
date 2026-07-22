@@ -144,6 +144,26 @@ const Sketchy = (() => {
   }
 
   /**
+   * Draw a wobbly cubic curve from (x1,y1) to (x2,y2) with control
+   * points (cx1,cy1) and (cx2,cy2).
+   */
+  function cubicCurve(ctx, x1, y1, cx1, cy1, cx2, cy2, x2, y2, roughness = 1.5) {
+    const len = Math.hypot(cx1 - x1, cy1 - y1) + Math.hypot(cx2 - cx1, cy2 - cy1) + Math.hypot(x2 - cx2, y2 - cy2);
+    const segments = Math.max(8, Math.floor(len / 20));
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    for (let i = 1; i <= segments; i++) {
+      const t = i / segments;
+      const mt = 1 - t;
+      ctx.lineTo(
+        mt * mt * mt * x1 + 3 * mt * mt * t * cx1 + 3 * mt * t * t * cx2 + t * t * t * x2 + (rand() - 0.5) * roughness,
+        mt * mt * mt * y1 + 3 * mt * mt * t * cy1 + 3 * mt * t * t * cy2 + t * t * t * y2 + (rand() - 0.5) * roughness
+      );
+    }
+    ctx.stroke();
+  }
+
+  /**
    * Segmentos de una punta de flecha en (x, y) apuntando según `angle`.
    * Pura y sin jitter (no consume el PRNG): devuelve los 2 segmentos
    * [{x1,y1,x2,y2}, {x1,y1,x2,y2}] con aberturas angle ± 0.4.
@@ -170,5 +190,5 @@ const Sketchy = (() => {
     });
   }
 
-  return { line, rect, roundedRect, ellipse, arrow, arrowHead, curve, setSeed };
+  return { line, rect, roundedRect, ellipse, arrow, arrowHead, curve, cubicCurve, setSeed };
 })();
