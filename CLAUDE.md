@@ -40,7 +40,7 @@ The app is state-driven immediate-mode rendering: a single `state.elements` arra
 
 One element type has no sidebar button: `image` (pasted via Ctrl/Cmd+V), whose `src` must be a base64 `data:image/png|jpeg` URL — enforced by `isValidElement` to keep injection out of SVG/HTML exports. Renderer keeps an image cache; `Renderer.setImageLoadCallback` is how app.js gets repaints when async loads finish.
 
-One controlled exception to immutability discipline: `resolveAnchors()` in app.js runs at the start of `redrawNow` and materializes anchored arrow endpoints (`startAnchor`/`endAnchor` referencing an element `id`) back into the elements — always by replacing with copies, never with `saveUndo` (it's derived state: snapshots capture materialized coords and the post-undo redraw re-resolves). Element `id`s are assigned lazily only when something anchors to them.
+One controlled exception to immutability discipline: `resolveAnchors()` in app.js runs at the start of `redrawNow` and materializes anchored arrow endpoints (`startAnchor`/`endAnchor` referencing an element `id`) back into the elements — always by replacing with copies, never with `saveUndo` (it's derived state: snapshots capture materialized coords and the post-undo redraw re-resolves). When the chord of a `curveArrow` changes, its control points are re-projected through the old-chord→new-chord similarity transform (`transformControlsToChord`) so the curve keeps its shape — the same helper runs while dragging an endpoint handle in `resizeTo`. Element `id`s are assigned lazily only when something anchors to them.
 
 ### Adding a new element type
 

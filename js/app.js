@@ -226,6 +226,42 @@
   }
 
   /**
+   * Copia de la curveArrow con los controles llevados por la transformación
+   * de semejanza (traslación+rotación+escala) que mapea la cuerda vieja
+   * `old{x1,y1,x2,y2}` a la actual de `el`: conserva el lado de la comba, la
+   * forma en S y la intensidad relativa. Cuerda nueva degenerada → controles
+   * intactos; cuerda vieja degenerada → controles reseteados al default.
+   */
+  function transformControlsToChord(el, old) {
+    const odx = old.x2 - old.x1, ody = old.y2 - old.y1;
+    const ndx = el.x2 - el.x1, ndy = el.y2 - el.y1;
+    if (odx === ndx && ody === ndy && old.x1 === el.x1 && old.y1 === el.y1) return el;
+    const oldLen2 = odx * odx + ody * ody;
+    if (ndx * ndx + ndy * ndy < 1e-6) return el;
+    if (oldLen2 < 1e-6) {
+      if (el.cx2 !== undefined) {
+        return { ...el, ...defaultCubicCtrls(el, 0.25 * Math.hypot(ndx, ndy)) };
+      }
+      const c = defaultCtrl({ x: el.x1, y: el.y1 }, { x: el.x2, y: el.y2 }, false);
+      return { ...el, cx: c.cx, cy: c.cy };
+    }
+    // r = (ndx + i·ndy) / (odx + i·ody), aplicado como z' = p1' + r·(z − p1)
+    const a = (ndx * odx + ndy * ody) / oldLen2;
+    const b = (ndy * odx - ndx * ody) / oldLen2;
+    const map = (px, py) => ({
+      x: el.x1 + a * (px - old.x1) - b * (py - old.y1),
+      y: el.y1 + b * (px - old.x1) + a * (py - old.y1),
+    });
+    const c1 = map(el.cx, el.cy);
+    const m = { ...el, cx: c1.x, cy: c1.y };
+    if (el.cx2 !== undefined) {
+      const c2 = map(el.cx2, el.cy2);
+      m.cx2 = c2.x; m.cy2 = c2.y;
+    }
+    return m;
+  }
+
+  /**
    * Copia de la flecha con la dirección invertida: la punta pasa al otro
    * extremo. En cuadrática la curva es idéntica (solo cambia la
    * parametrización); en cúbica se intercambian también los controles.
@@ -329,6 +365,8 @@
    * SIN saveUndo: los snapshots capturan lo materializado y el redraw
    * posterior a un undo re-resuelve). Si el ancla ya no existe, se quita el
    * anchor conservando las últimas coordenadas ("desanclar congelado").
+   * En curveArrow, cuando la cuerda cambia los controles se re-proyectan con
+   * transformControlsToChord para que la curva conserve su forma.
    * Reemplaza siempre por copias, nunca muta elementos.
    */
   function resolveAnchors() {
@@ -346,6 +384,7 @@
         });
       }
       let m = state.elements[i];
+      const old = { x1: m.x1, y1: m.y1, x2: m.x2, y2: m.y2 };
       const apply = (key, xKey, yKey, oxKey, oyKey) => {
         const a = m[key];
         if (!a) return;
@@ -362,7 +401,11 @@
       };
       apply('startAnchor', 'x1', 'y1', 'x2', 'y2');
       apply('endAnchor', 'x2', 'y2', 'x1', 'y1');
-      if (m !== state.elements[i]) state.elements[i] = m;
+      if (m !== state.elements[i]) {
+        // La cuerda cambió: re-proyectar los controles para conservar la forma
+        if (m.type === 'curveArrow') m = transformControlsToChord(m, old);
+        state.elements[i] = m;
+      }
     }
   }
 
@@ -598,7 +641,7 @@
     // suelta el anclaje de ese lado (para que siga al puntero) y se registra
     // el candidato bajo el cursor para re-anclar al soltar
     if (r.corner === 'p1' || r.corner === 'p2') {
-      const copy = { ...r.original };
+      let copy = { ...r.original };
       if (r.corner === 'p1') {
         delete copy.startAnchor;
         copy.x1 = p.x;
@@ -608,6 +651,7 @@
         copy.x2 = p.x;
         copy.y2 = p.y;
       }
+      if (copy.type === 'curveArrow') copy = transformControlsToChord(copy, r.original);
       state.elements[state.selection[0]] = copy;
       r.anchorCandidate = findAnchorTarget(p, state.selection[0]);
       r.did = true;

@@ -22,7 +22,7 @@ SketchWire es una aplicación de wireframing sobre canvas escrita en JavaScript 
 ### Flechas de nivel diagrama
 - ↷ **Flechas curvas** con handle de curvatura: Shift al trazar la comba hacia el otro lado, `F` invierte el giro, `+`/`−` ajustan la intensidad, doble click en el handle la resetea.
 - 🔀 **Curva en S** (`S`): cúbica con dos puntos de control.
-- 🧲 **Conectores anclados**: suelta un extremo sobre un elemento y la flecha se pega a su borde — al mover o redimensionar el elemento, la flecha lo sigue.
+- 🧲 **Conectores anclados**: suelta un extremo sobre un elemento y la flecha se pega a su borde — al mover o redimensionar el elemento, la flecha lo sigue conservando su curvatura.
 - 🏷️ **Etiquetas sobre el trazo** (doble click), doble punta, trazo discontinuo, grosor por elemento y dirección invertible (`D`).
 
 ### Edición
