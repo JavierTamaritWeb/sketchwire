@@ -2,9 +2,10 @@
 
 **Wireframes y bocetos web con estética dibujada a mano — en tu navegador, sin instalar nada.**
 
+![Versión](https://img.shields.io/badge/versi%C3%B3n-1.1.0-blueviolet)
 ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-f7df1e?logo=javascript&logoColor=000)
 ![Sin dependencias](https://img.shields.io/badge/dependencias-0-brightgreen)
-![Tests](https://img.shields.io/badge/tests-123%20%E2%9C%93-brightgreen)
+![Tests](https://img.shields.io/badge/tests-133%20%E2%9C%93-brightgreen)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-blue)
 
 SketchWire es una aplicación de wireframing sobre canvas escrita en JavaScript puro: **sin build, sin bundler, sin `node_modules`**. Abre `index.html` y dibuja.
@@ -15,6 +16,7 @@ SketchWire es una aplicación de wireframing sobre canvas escrita en JavaScript 
 
 ### Dibujo
 - ✏️ **Lápiz, líneas, flechas, formas** (rectángulo, redondeado, elipse) con trazo *sketchy* de aspecto manual — determinista: cada elemento guarda su semilla y no "tiembla" entre repintados.
+- ◠ **Semicírculos** de 180° exactos y sin puntas: el arrastre fija el diámetro (y con él el radio); después `+`/`−` o su handle ajustan el radio manteniendo la media circunferencia perfecta. `Q` convierte una flecha curva existente en semicírculo y viceversa.
 - 🧩 **Componentes UI listos**: botón, input, imagen, navbar y tarjeta, con etiquetas editables (doble click).
 - 🖼️ **Imágenes reales**: pega desde el portapapeles (`Ctrl/Cmd+V`) o arrastra archivos PNG/JPEG desde el escritorio.
 - 📐 **Plantillas**: landing page, dashboard y formulario para empezar en un click.
@@ -55,7 +57,7 @@ python3 -m http.server 8000   # → http://localhost:8000
 
 | Atajo | Acción |
 |-------|--------|
-| `P` `L` `A` `U` `E` | Lápiz · Línea · Flecha · Flecha curva · Borrador |
+| `P` `L` `A` `U` `G` `E` | Lápiz · Línea · Flecha · Flecha curva · Semicírculo · Borrador |
 | `R` `O` `C` | Rectángulo · Redondeado · Círculo |
 | `T` `B` `I` `M` `N` `K` | Texto · Botón · Input · Imagen · Navbar · Tarjeta |
 | `V` | Mover / seleccionar |
@@ -64,7 +66,8 @@ python3 -m http.server 8000   # → http://localhost:8000
 | `Supr` / `Esc` | Borrar selección / deseleccionar |
 | Flechas (+`Shift`) | Mover selección 1px (20px) |
 | `F` / `D` / `S` | Invertir giro · invertir dirección · curva en S |
-| `+` / `−` (+`Shift`) | Ajustar curvatura (fino) |
+| `Q` | Convertir flecha curva ↔ semicírculo |
+| `+` / `−` (+`Shift`) | Ajustar curvatura — en semicírculos, el radio (fino) |
 | `Ctrl+V` | Pegar imagen del portapapeles |
 
 ## Arquitectura
@@ -75,6 +78,7 @@ css/styles.css      Estilos (BEM, tema oscuro)
 js/
 ├── config.js       Constantes: herramientas, colores, tamaños
 ├── sketchy.js      Primitivas de trazo manual (PRNG determinista por elemento)
+├── arc.js          Geometría de arcos circulares (ajuste de cúbica a semicírculo)
 ├── renderer.js     Render por tipo de elemento + cuadrícula + selección
 ├── exporter.js     Export PNG/JPG/SVG/HTML/JSON + import validado
 ├── templates.js    Plantillas predefinidas
@@ -90,14 +94,14 @@ Principios de diseño:
 
 ## Tests
 
-123 tests con el runner nativo de Node — sin ninguna dependencia:
+133 tests con el runner nativo de Node — sin ninguna dependencia:
 
 ```bash
 node --test tests/                    # suite completa
 node --test tests/exporter.test.js    # un archivo
 ```
 
-Los módulos se cargan en un contexto `node:vm` con stubs de canvas/DOM (ver `tests/helpers/`). La hoja de ruta de mejoras vive en [`PLAN.md`](PLAN.md).
+Los módulos se cargan en un contexto `node:vm` con stubs de canvas/DOM (ver `tests/helpers/`). La hoja de ruta de mejoras vive en [`PLAN.md`](PLAN.md) y el historial de versiones en [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Licencia
 

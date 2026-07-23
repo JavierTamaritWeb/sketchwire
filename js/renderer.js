@@ -241,13 +241,16 @@ const Renderer = (() => {
         if (el.dash) ctx.setLineDash([]);
         // Punta escalada con el grosor (10 + 2·lineWidth; 14px con el default)
         const headLen = 10 + 2 * el.lineWidth;
-        // Punta orientada según la tangente en el extremo (último control → fin)
-        const ecx = cubic ? el.cx2 : el.cx, ecy = cubic ? el.cy2 : el.cy;
-        let dx = el.x2 - ecx, dy = el.y2 - ecy;
-        if (!dx && !dy) { dx = el.x2 - el.x1; dy = el.y2 - el.y1; }
-        Sketchy.arrowHead(el.x2, el.y2, Math.atan2(dy, dx), headLen).forEach(sg => {
-          Sketchy.line(ctx, sg.x1, sg.y1, sg.x2, sg.y2);
-        });
+        // heads:'none' (semicírculos): trazo sin punta en ningún extremo
+        if (el.heads !== 'none') {
+          // Punta orientada según la tangente en el extremo (último control → fin)
+          const ecx = cubic ? el.cx2 : el.cx, ecy = cubic ? el.cy2 : el.cy;
+          let dx = el.x2 - ecx, dy = el.y2 - ecy;
+          if (!dx && !dy) { dx = el.x2 - el.x1; dy = el.y2 - el.y1; }
+          Sketchy.arrowHead(el.x2, el.y2, Math.atan2(dy, dx), headLen).forEach(sg => {
+            Sketchy.line(ctx, sg.x1, sg.y1, sg.x2, sg.y2);
+          });
+        }
         // Doble punta opcional: tangente en el inicio (primer control → inicio)
         if (el.heads === 'both') {
           let sdx = el.x1 - el.cx, sdy = el.y1 - el.cy;

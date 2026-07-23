@@ -19,7 +19,8 @@
 
    El contexto devuelto expone como propiedades: TOOLS, TOOL_GROUPS,
    COLORS, CANVAS_W, CANVAS_H, SKETCHY_FONT, UI_DEFAULTS, Sketchy,
-   Renderer, Exporter, Templates (según qué archivos se hayan cargado),
+   ArcMath, Renderer, Exporter, Templates (según qué archivos se hayan
+   cargado),
    más los stubs: document, Blob, URL, alert, FileReader, createCtxStub,
    y los registros: context.alerts (mensajes de alert),
    context.document.created (elementos creados por createElement),
@@ -38,13 +39,14 @@ const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
 const KNOWN_GLOBALS = [
   'TOOLS', 'TOOL_GROUPS', 'COLORS', 'CANVAS_W', 'CANVAS_H',
   'SKETCHY_FONT', 'UI_DEFAULTS',
-  'Sketchy', 'Renderer', 'Exporter', 'Templates',
+  'Sketchy', 'ArcMath', 'Renderer', 'Exporter', 'Templates',
 ];
 
 /** Orden completo de dependencias del proyecto (app.js excluido: requiere DOM real). */
 const ALL_FILES = [
   'js/config.js',
   'js/sketchy.js',
+  'js/arc.js',
   'js/renderer.js',
   'js/exporter.js',
   'js/templates.js',

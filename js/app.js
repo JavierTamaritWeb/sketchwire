@@ -239,6 +239,10 @@
     const oldLen2 = odx * odx + ody * ody;
     if (ndx * ndx + ndy * ndy < 1e-6) return el;
     if (oldLen2 < 1e-6) {
+      if (el.arc === true) {
+        const ctrls = ArcMath.arcCtrls(el.x1, el.y1, el.x2, el.y2, 0.5 * Math.hypot(ndx, ndy));
+        if (ctrls) return { ...el, ...ctrls };
+      }
       if (el.cx2 !== undefined) {
         return { ...el, ...defaultCubicCtrls(el, 0.25 * Math.hypot(ndx, ndy)) };
       }
@@ -297,6 +301,41 @@
       cx2: el.x1 + dx * 0.75 - sVal * ux,
       cy2: el.y1 + dy * 0.75 - sVal * uy,
     };
+  }
+
+  /**
+   * Copia de la curveArrow convertida en semicírculo de 180°: marca `arc` y
+   * recomputa los controles cúbicos (ArcMath) con comba = cuerda/2,
+   * conservando el lado actual de la curva. Cuerda degenerada → intacta.
+   */
+  function toArc(el) {
+    const L = Math.hypot(el.x2 - el.x1, el.y2 - el.y1);
+    const side = Math.sign(ArcMath.arcSagitta(el)) || 1;
+    const ctrls = ArcMath.arcCtrls(el.x1, el.y1, el.x2, el.y2, side * L / 2);
+    if (!ctrls) return el;
+    return { ...el, ...ctrls, arc: true };
+  }
+
+  /**
+   * Copia de un semicírculo con radio nuevo R: los extremos se reubican
+   * sobre la dirección de la cuerda actual a ±R del punto medio (el
+   * diámetro cambia, el centro no) y los controles se recomputan con
+   * comba = ±R para conservar los 180°. `side` fuerza el lado (±1);
+   * sin él se conserva el actual. Cuerda degenerada → intacta.
+   */
+  function resizeArc(el, R, side) {
+    const dx = el.x2 - el.x1, dy = el.y2 - el.y1;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-3) return el;
+    R = Math.max(ArcMath.MIN_SAGITTA, R);
+    const dirX = dx / len, dirY = dy / len;
+    const mx = (el.x1 + el.x2) / 2, my = (el.y1 + el.y2) / 2;
+    const s = (side || Math.sign(ArcMath.arcSagitta(el)) || 1) * R;
+    const x1 = mx - R * dirX, y1 = my - R * dirY;
+    const x2 = mx + R * dirX, y2 = my + R * dirY;
+    const ctrls = ArcMath.arcCtrls(x1, y1, x2, y2, s);
+    if (!ctrls) return el;
+    return { ...el, x1, y1, x2, y2, ...ctrls };
   }
 
   /**
@@ -700,6 +739,26 @@
 
     // Handles de curvatura: mueven solo su punto de control
     if (r.corner === 'ctrl' || r.corner === 'ctrl2') {
+      // Semicírculo (siempre 180°): el arrastre de cualquiera de los dos
+      // controles cambia el RADIO — distancia del puntero al centro del
+      // diámetro — y el lado; los extremos se reubican sobre la dirección
+      // de la cuerda, así que se sueltan los anclajes como al arrastrar
+      // un extremo
+      if (r.original.arc === true) {
+        const fr = chordFrame(r.original);
+        if (fr) {
+          const R = Math.hypot(p.x - fr.mx, p.y - fr.my);
+          const side = Math.sign((p.x - fr.mx) * fr.ux + (p.y - fr.my) * fr.uy) || 1;
+          const copy = resizeArc(r.original, R, side);
+          if (copy !== r.original) {
+            delete copy.startAnchor;
+            delete copy.endAnchor;
+            state.elements[state.selection[0]] = copy;
+            r.did = true;
+          }
+        }
+        return;
+      }
       let cp = p;
       // Shift: restringe el control a la mediatriz de la cuerda → arcos
       // simétricos, solo cambia la intensidad (puede cruzar al otro lado).
@@ -895,6 +954,19 @@
         octx.stroke();
         break;
       }
+      case TOOLS.ARC: {
+        // Mismo semicírculo de 180° que tendrá el elemento al soltarse
+        // (Shift durante el trazado comba hacia el otro lado)
+        const L = Math.hypot(pos.x - state.startPos.x, pos.y - state.startPos.y);
+        const arc = ArcMath.arcCtrls(state.startPos.x, state.startPos.y, pos.x, pos.y,
+          (state.curveFlip ? -1 : 1) * L / 2);
+        octx.beginPath();
+        octx.moveTo(state.startPos.x, state.startPos.y);
+        if (arc) octx.bezierCurveTo(arc.cx, arc.cy, arc.cx2, arc.cy2, pos.x, pos.y);
+        else octx.lineTo(pos.x, pos.y);
+        octx.stroke();
+        break;
+      }
       default:
         octx.strokeRect(x, y, w, h);
     }
@@ -946,7 +1018,7 @@
     if (!state.isDrawing) return;
     lastPos = pos;
     // Shift mientras se traza la flecha curva: curva hacia el otro lado
-    if (state.tool === TOOLS.CURVE_ARROW) state.curveFlip = e.shiftKey;
+    if (state.tool === TOOLS.CURVE_ARROW || state.tool === TOOLS.ARC) state.curveFlip = e.shiftKey;
     // Los puntos se acumulan en cada evento (no se pierde trazo) descartando
     // los que están a <2px del anterior (decimación: reduce el path 3-5x);
     // el pintado se coalesce a un frame por refresco
@@ -1059,12 +1131,13 @@
     const w = Math.abs(p2.x - p1.x);
     const h = Math.abs(p2.y - p1.y);
 
-    // Line / Arrow / Curve (descarta clicks sin arrastre: líneas de longitud ~0)
-    if ([TOOLS.LINE, TOOLS.ARROW, TOOLS.CURVE_ARROW].includes(state.tool)) {
+    // Line / Arrow / Curve / Arc (descarta clicks sin arrastre: longitud ~0)
+    if ([TOOLS.LINE, TOOLS.ARROW, TOOLS.CURVE_ARROW, TOOLS.ARC].includes(state.tool)) {
       if (Math.hypot(p2.x - p1.x, p2.y - p1.y) >= 4) {
         saveUndo();
         const el = {
-          type: state.tool,
+          // La herramienta arco no es un tipo de elemento: crea curveArrow
+          type: state.tool === TOOLS.ARC ? TOOLS.CURVE_ARROW : state.tool,
           x1: p1.x, y1: p1.y,
           x2: p2.x, y2: p2.y,
           color: state.color, lineWidth: state.lineWidth,
@@ -1076,6 +1149,17 @@
           const c = defaultCtrl(p1, p2, state.curveFlip);
           el.cx = c.cx;
           el.cy = c.cy;
+        }
+        if (state.tool === TOOLS.ARC) {
+          // Semicírculo de 180°: el arrastre es el diámetro (radio = mitad
+          // de la longitud arrastrada; Shift: comba hacia el otro lado).
+          // Sin puntas de flecha: es un trazo, no un conector.
+          const L = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+          const arc = ArcMath.arcCtrls(p1.x, p1.y, p2.x, p2.y,
+            (state.curveFlip ? -1 : 1) * L / 2);
+          Object.assign(el, arc);
+          el.arc = true;
+          el.heads = 'none';
         }
         if ((state.tool === TOOLS.ARROW || state.tool === TOOLS.CURVE_ARROW) && state.doubleHead) {
           el.heads = 'both';
@@ -1214,7 +1298,10 @@
       }
       if (sel && arrowHandles(sel).some(h => h.kind === 'ctrl' && Math.hypot(pos.x - h.x, pos.y - h.y) <= HANDLE_HIT)) {
         saveUndo();
-        if (sel.cx2 !== undefined) {
+        if (sel.arc === true) {
+          // Semicírculo: re-normalizar a 180° exactos, lado actual
+          state.elements[state.selection[0]] = toArc(sel);
+        } else if (sel.cx2 !== undefined) {
           const len = Math.hypot(sel.x2 - sel.x1, sel.y2 - sel.y1);
           state.elements[state.selection[0]] = { ...sel, ...defaultCubicCtrls(sel, 0.25 * len) };
         } else {
@@ -1528,8 +1615,9 @@
       const on = e.target.checked;
       if (state.selection.length) {
         const arrows = state.selection.filter(i => {
-          const t = state.elements[i].type;
-          return t === 'arrow' || t === 'curveArrow';
+          const el = state.elements[i];
+          // Los semicírculos (heads:'none') nunca llevan punta
+          return (el.type === 'arrow' || el.type === 'curveArrow') && el.heads !== 'none';
         });
         if (!arrows.length) return;
         saveUndo();
@@ -1689,6 +1777,28 @@
       return;
     }
 
+    // Q: alternar semicírculo en las flechas curvas seleccionadas
+    // (activar = snap a 180° conservando el lado, sin puntas; desactivar
+    // deja la cúbica tal cual, quitando la marca y recuperando la punta)
+    if (k === 'q' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey &&
+        state.selection.some(i => state.elements[i].type === 'curveArrow')) {
+      saveUndo();
+      state.selection.forEach(i => {
+        const el = state.elements[i];
+        if (el.type !== 'curveArrow') return;
+        if (el.arc === true) {
+          const copy = { ...el };
+          delete copy.arc;
+          if (copy.heads === 'none') delete copy.heads;
+          state.elements[i] = copy;
+        } else {
+          state.elements[i] = { ...toArc(el), heads: 'none' };
+        }
+      });
+      redraw();
+      return;
+    }
+
     // D: invertir la dirección de las flechas seleccionadas (la punta pasa
     // al otro extremo; en curvas la forma no cambia)
     if (k === 'd' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey &&
@@ -1712,9 +1822,11 @@
       saveUndo();
       if (el.cx2 !== undefined) {
         // Cúbica → cuadrática: quitar el segundo control y resetear el primero
+        // (la marca de arco no puede sobrevivir en una cuadrática)
         const copy = { ...el };
         delete copy.cx2;
         delete copy.cy2;
+        delete copy.arc;
         const c = defaultCtrl({ x: el.x1, y: el.y1 }, { x: el.x2, y: el.y2 }, false);
         copy.cx = c.cx;
         copy.cy = c.cy;
@@ -1742,6 +1854,21 @@
         !e.ctrlKey && !e.metaKey && !e.altKey && state.selection.length === 1) {
       const el = state.elements[state.selection[0]];
       if (el.type === 'curveArrow') {
+        // Semicírculo (siempre 180°): +/− ajustan el RADIO con pasos de
+        // 5px/1px; el centro del diámetro no se mueve. En arcos anclados
+        // el redraw re-materializa los extremos (el ajuste no persiste).
+        if (el.arc === true) {
+          const mag = (e.shiftKey ? 1 : 5) * (e.key === '-' ? -1 : 1);
+          const R = Math.hypot(el.x2 - el.x1, el.y2 - el.y1) / 2 + mag;
+          const copy = resizeArc(el, R);
+          if (copy !== el) {
+            e.preventDefault();
+            saveUndo();
+            state.elements[state.selection[0]] = copy;
+            redraw();
+          }
+          return;
+        }
         const fr = chordFrame(el);
         if (fr) {
           e.preventDefault();

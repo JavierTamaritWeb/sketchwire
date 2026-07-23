@@ -12,5 +12,6 @@
 
 require('./smoke.test.js');
 require('./config-templates.test.js');
+require('./arc.test.js');
 require('./exporter.test.js');
 require('./sketchy-renderer.test.js');

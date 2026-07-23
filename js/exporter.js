@@ -157,11 +157,14 @@ const Exporter = (() => {
             ? `<path d="M${el.x1} ${el.y1} C${el.cx} ${el.cy} ${el.cx2} ${el.cy2} ${el.x2} ${el.y2}" ${sBody}/>\n`
             : `<path d="M${el.x1} ${el.y1} Q${el.cx} ${el.cy} ${el.x2} ${el.y2}" ${sBody}/>\n`;
           const chl = 10 + 2 * el.lineWidth;
-          // Punta según la tangente en el extremo (último control → fin)
-          const ecx = cubic ? el.cx2 : el.cx, ecy = cubic ? el.cy2 : el.cy;
-          let tdx = el.x2 - ecx, tdy = el.y2 - ecy;
-          if (!tdx && !tdy) { tdx = el.x2 - el.x1; tdy = el.y2 - el.y1; }
-          out += _svgArrowHead(el.x2, el.y2, Math.atan2(tdy, tdx), chl, s);
+          // heads:'none' (semicírculos): sin punta en ningún extremo
+          if (el.heads !== 'none') {
+            // Punta según la tangente en el extremo (último control → fin)
+            const ecx = cubic ? el.cx2 : el.cx, ecy = cubic ? el.cy2 : el.cy;
+            let tdx = el.x2 - ecx, tdy = el.y2 - ecy;
+            if (!tdx && !tdy) { tdx = el.x2 - el.x1; tdy = el.y2 - el.y1; }
+            out += _svgArrowHead(el.x2, el.y2, Math.atan2(tdy, tdx), chl, s);
+          }
           // Doble punta opcional: tangente en el inicio (control → inicio)
           if (el.heads === 'both') {
             let sdx = el.x1 - el.cx, sdy = el.y1 - el.cy;
@@ -328,8 +331,10 @@ body { font-family: ${SKETCHY_FONT}; background: #fff; }
     if (!_isNum(el.lineWidth)) return false;
     // Campos opcionales comunes: DEBEN validarse aquí, antes de los return
     // tempranos por tipo (colocarlos más abajo los deja en zona muerta)
-    // heads (doble punta): whitelist estricta; undefined ≡ 'end'
-    if (el.heads !== undefined && el.heads !== 'end' && el.heads !== 'both') return false;
+    // heads (puntas): whitelist estricta; undefined ≡ 'end'; 'none' = sin
+    // puntas (semicírculos)
+    if (el.heads !== undefined && el.heads !== 'end' && el.heads !== 'both' &&
+        el.heads !== 'none') return false;
     // dash (trazo discontinuo): solo se serializa `true`
     if (el.dash !== undefined && el.dash !== true) return false;
     // label (etiqueta de componentes y flechas)
@@ -355,6 +360,8 @@ body { font-family: ${SKETCHY_FONT}; background: #fff; }
       // Segundo control (curva en S): opcional, pero en pareja y numérico
       if ((el.cx2 !== undefined || el.cy2 !== undefined) &&
           !(_isNum(el.cx2) && _isNum(el.cy2))) return false;
+      // arc (arco circular): whitelist estricta de `true` y exige cúbica
+      if (el.arc !== undefined && (el.arc !== true || el.cx2 === undefined)) return false;
       return _isNum(el.x1) && _isNum(el.y1) && _isNum(el.x2) && _isNum(el.y2) &&
              _isNum(el.cx) && _isNum(el.cy);
     }

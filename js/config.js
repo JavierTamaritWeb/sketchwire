@@ -10,6 +10,7 @@ const TOOLS = Object.freeze({
   CIRCLE:           'circle',
   ARROW:            'arrow',
   CURVE_ARROW:      'curveArrow',
+  ARC:              'arc', // herramienta de creación: produce curveArrow con arc:true
   TEXT:             'text',
   ERASER:           'eraser',
   SELECT:           'select',
@@ -29,6 +30,7 @@ const TOOL_GROUPS = [
       { id: TOOLS.LINE,   icon: '📏', name: 'Línea',    key: 'l' },
       { id: TOOLS.ARROW,  icon: '➡️', name: 'Flecha',   key: 'a' },
       { id: TOOLS.CURVE_ARROW, icon: '↷', name: 'Flecha curva', key: 'u' },
+      { id: TOOLS.ARC,    icon: '◠', name: 'Semicírculo', key: 'g' },
       { id: TOOLS.ERASER, icon: '🧽', name: 'Borrador', key: 'e' },
     ],
   },
