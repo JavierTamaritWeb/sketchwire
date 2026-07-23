@@ -4,6 +4,26 @@ Los cambios notables de Pizarra se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y el
 versionado es [SemVer](https://semver.org/lang/es/).
 
+## [1.2.0] — 2026-07-23
+
+### Añadido
+- **Copiar y pegar la selección** con `Ctrl/Cmd+C` y `Ctrl/Cmd+V`: funciona
+  con uno o varios elementos (Shift+click, marquee o `Ctrl/Cmd+A`), pega con
+  desplazamiento de 20 px, activa la herramienta Mover y deja lo pegado
+  seleccionado para encadenar pegados o arrastrar.
+- El payload viaja por el portapapeles del sistema, así que el pegado
+  funciona **entre pestañas** y tras recargar. Al pegar se regeneran ids y
+  semillas, y las flechas ancladas se re-vinculan a los clones si su destino
+  también se copió (misma lógica que "Duplicar", ahora compartida en
+  `insertClones`).
+- Lo pegado pasa por el mismo validador que el import JSON; un portapapeles
+  manipulado no puede inyectar elementos inválidos.
+
+### Cambiado
+- El pegado de imágenes PNG/JPG con `Ctrl/Cmd+V` se mantiene: los elementos
+  propios tienen prioridad y, si no los hay, se intenta la imagen. Dentro de
+  campos de texto, copiar/pegar siguen siendo los nativos del navegador.
+
 ## [1.1.1] — 2026-07-23
 
 ### Cambiado

@@ -1371,11 +1371,49 @@
     reader.readAsDataURL(file);
   }
 
+  /* ── Copiar / pegar la selección (Ctrl/Cmd+C · Ctrl/Cmd+V) ── */
+
+  // Marcador del payload propio en el portapapeles del sistema: permite
+  // pegar entre pestañas/recargas y convivir con el pegado de imágenes
+  const ELEMENTS_CLIPBOARD = 'sketchwire/elements';
+
+  document.addEventListener('copy', e => {
+    // No interceptar la copia dentro de campos de texto
+    const tag = e.target.tagName;
+    if (e.target === textInput || tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (!state.selection.length || !e.clipboardData) return;
+    e.preventDefault();
+    e.clipboardData.setData('text/plain', JSON.stringify({
+      app: ELEMENTS_CLIPBOARD,
+      elements: state.selection.map(i => state.elements[i]),
+    }));
+  });
+
   document.addEventListener('paste', e => {
     // No interceptar el pegado dentro de campos de texto
     const tag = e.target.tagName;
     if (e.target === textInput || tag === 'INPUT' || tag === 'TEXTAREA') return;
-    const items = e.clipboardData && e.clipboardData.items;
+    if (!e.clipboardData) return;
+    // 1º: elementos copiados con Ctrl/Cmd+C (payload JSON propio); pasan por
+    // el mismo validador que el import para descartar contenido manipulado
+    const text = e.clipboardData.getData('text/plain');
+    if (text) {
+      let data = null;
+      try { data = JSON.parse(text); } catch (_) { /* no es nuestro payload */ }
+      if (data && data.app === ELEMENTS_CLIPBOARD && Array.isArray(data.elements)) {
+        e.preventDefault();
+        const els = data.elements.filter(Exporter.isValidElement);
+        if (!els.length) return;
+        // Pegar activa la herramienta Mover: los clones quedan seleccionados
+        if (state.tool !== TOOLS.SELECT) selectTool(TOOLS.SELECT);
+        saveUndo();
+        insertClones(els, 20, 20);
+        redraw();
+        return;
+      }
+    }
+    // 2º: imágenes del portapapeles
+    const items = e.clipboardData.items;
     if (!items) return;
     for (const item of items) {
       if (IMAGE_MIME.test(item.type)) {
@@ -1442,15 +1480,17 @@
     redraw();
   }
 
-  function duplicateSelection() {
-    if (!state.selection.length) return;
-    saveUndo();
+  /**
+   * Inserta copias de `sources` desplazadas (dx,dy): re-siembra el jitter,
+   * regenera el id de los anclables re-vinculando los anchors cuyo destino
+   * también se clona (los externos conservan su anchor original), y deja
+   * los clones seleccionados. El saveUndo es del llamador.
+   */
+  function insertClones(sources, dx, dy) {
     const start = state.elements.length;
-    // Los clones de anclables reciben id nuevo; se mapea para re-vincular
     const idMap = new Map();
-    state.selection.forEach(i => {
-      const src = state.elements[i];
-      const copy = moveElement(src, 15, 15);
+    sources.forEach(src => {
+      const copy = moveElement(src, dx, dy);
       copy.seed = newSeed();
       if (src.id) {
         copy.id = newId();
@@ -1469,8 +1509,13 @@
         state.elements[i] = copy;
       }
     }
-    // Los clones quedan seleccionados
     setSelection(Array.from({ length: state.elements.length - start }, (_, k) => start + k));
+  }
+
+  function duplicateSelection() {
+    if (!state.selection.length) return;
+    saveUndo();
+    insertClones(state.selection.map(i => state.elements[i]), 15, 15);
     redraw();
   }
 

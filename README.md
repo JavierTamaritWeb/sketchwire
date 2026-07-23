@@ -2,7 +2,7 @@
 
 **Crea wireframes, diagramas y bocetos con estilo dibujado a mano, directamente en tu navegador.**
 
-![Versión](https://img.shields.io/badge/versi%C3%B3n-1.1.1-blueviolet)
+![Versión](https://img.shields.io/badge/versi%C3%B3n-1.2.0-blueviolet)
 ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-f7df1e?logo=javascript&logoColor=000)
 ![Sin dependencias](https://img.shields.io/badge/dependencias-0-brightgreen)
 ![Tests](https://img.shields.io/badge/tests-133%20%E2%9C%93-brightgreen)
@@ -29,6 +29,7 @@ Pizarra es una aplicación de wireframing sobre canvas escrita en JavaScript pur
 
 ### Edición
 - 👆 Selección múltiple (Shift+click, marquee, `Ctrl/Cmd+A`), mover, duplicar (`Ctrl/Cmd+D`), redimensionar con handles y nudge con flechas.
+- 📋 **Copiar y pegar** la selección con `Ctrl/Cmd+C` / `Ctrl/Cmd+V` — también entre pestañas. Lo pegado aparece desplazado, queda seleccionado y las flechas ancladas se re-vinculan a sus clones.
 - ↩️ Undo/redo con historial de 50 pasos (`Ctrl+Z` / `Ctrl+Y` / `Cmd+Shift+Z`).
 - 🧮 Cuadrícula con ajuste opcional (Alt lo desactiva al vuelo) y zoom 30–200%.
 - 💾 **Autoguardado** en localStorage: tu trabajo sobrevive al refresco.
@@ -83,7 +84,7 @@ Pizarra guarda automáticamente el lienzo en `localStorage`. Para crear una copi
 | `F` / `D` / `S` | Invertir giro · invertir dirección · curva en S |
 | `Q` | Convertir flecha curva ↔ semicírculo |
 | `+` / `−` (+`Shift`) | Ajustar curvatura — en semicírculos, el radio (fino) |
-| `Ctrl/Cmd+V` | Pegar imagen del portapapeles |
+| `Ctrl/Cmd+C` / `Ctrl/Cmd+V` | Copiar selección / pegarla (o pegar imagen del portapapeles) |
 
 ## Arquitectura
 
