@@ -1,6 +1,6 @@
 # ✎ Pizarra
 
-**Wireframes y bocetos web con estética dibujada a mano — en tu navegador, sin instalar nada.**
+**Crea wireframes, diagramas y bocetos con estilo dibujado a mano, directamente en tu navegador.**
 
 ![Versión](https://img.shields.io/badge/versi%C3%B3n-1.1.1-blueviolet)
 ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-f7df1e?logo=javascript&logoColor=000)
